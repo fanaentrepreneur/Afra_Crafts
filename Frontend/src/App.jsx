@@ -1,0 +1,84 @@
+import { useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import logoImg from '../assests/Logo/WhatsApp Image 2026-06-13 at 21.45.14.jpeg';
+import HomePage from './HomePage.jsx';
+import AdminPage from './AdminPage.jsx';
+import { getRole } from './utils/auth.js';
+import Sidebar from './components/Sidebar.jsx';
+import LogoPopup from './components/LogoPopup.jsx';
+
+export default function App() {
+  /* Reactive auth state — source of truth for all header/route logic */
+  const [authRole,    setAuthRole]    = useState(() => getRole());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [popupOpen,   setPopupOpen]   = useState(false);
+
+  const handleAuthChange = () => setAuthRole(getRole());
+
+  return (
+    <div className="app-shell">
+
+      {/* ── Header ──────────────────────────── */}
+      <header className="app-header">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+          <span className="ham-line" />
+          <span className="ham-line" />
+          <span className="ham-line" />
+        </button>
+
+        {/* Logo — click to open sign-in / profile popup */}
+        <div className="brand-popup-wrap">
+          <button
+            className="app-brand-btn"
+            onClick={() => setPopupOpen(p => !p)}
+            aria-label="Open account menu"
+          >
+            <img src={logoImg} alt="Afra Crafts" className="brand-logo-img" />
+            <div className="brand-text">
+              <strong>Afra Crafts</strong>
+              <span>Handmade gifts</span>
+            </div>
+          </button>
+
+          {popupOpen && (
+            <LogoPopup
+              onClose={() => setPopupOpen(false)}
+              onAuthChange={handleAuthChange}
+            />
+          )}
+        </div>
+
+        {/* Right side: subtle admin badge only */}
+        <div className="header-right">
+          {authRole === 'admin' && (
+            <span className="admin-badge">Admin</span>
+          )}
+        </div>
+      </header>
+
+      {/* ── Sidebar ─────────────────────────── */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        authRole={authRole}
+        onAuthChange={handleAuthChange}
+      />
+
+      {/* ── Routes ──────────────────────────── */}
+      <Routes>
+        <Route path="/"      element={<Navigate to="/shop" replace />} />
+        <Route path="/shop"  element={<HomePage />} />
+        <Route path="/admin" element={
+          authRole === 'admin'
+            ? <AdminPage />
+            : <Navigate to="/shop" replace />
+        } />
+        <Route path="*" element={<Navigate to="/shop" replace />} />
+      </Routes>
+
+      <footer className="app-footer">
+        <p>© 2024 Afra Crafts · Handmade gifts for every occasion</p>
+      </footer>
+    </div>
+  );
+}
