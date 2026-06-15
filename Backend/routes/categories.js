@@ -41,11 +41,10 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, description, imageUrl, imageData } = req.body;
   const slug = name?.toLowerCase().replace(/\s+/g, '-');
-  const updated = await Category.findByIdAndUpdate(
-    id,
-    { name, description, slug, imageUrl: imageUrl || '', imageData: imageData || '' },
-    { new: true, runValidators: true }
-  );
+  const fields = { name, description, slug };
+  if (imageUrl !== undefined) fields.imageUrl = imageUrl || '';
+  if (imageData !== undefined) fields.imageData = imageData || '';
+  const updated = await Category.findByIdAndUpdate(id, fields, { new: true, runValidators: true });
   if (!updated) return res.status(404).json({ error: 'Category not found' });
   res.json(updated);
 });

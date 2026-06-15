@@ -26,19 +26,21 @@ export default function App() {
           <span className="ham-line" />
         </button>
 
-        {/* Logo — click to open sign-in / profile popup */}
+        {/* Brand — logo is display-only; clicking the name text opens popup */}
         <div className="brand-popup-wrap">
-          <button
-            className="app-brand-btn"
-            onClick={() => setPopupOpen(p => !p)}
-            aria-label="Open account menu"
-          >
+          <div className="app-brand-display">
             <img src={logoImg} alt="Afra Crafts" className="brand-logo-img" />
-            <div className="brand-text">
-              <strong>Afra Crafts</strong>
-              <span>Handmade gifts</span>
-            </div>
-          </button>
+            <button
+              className="app-brand-btn"
+              onClick={() => setPopupOpen(p => !p)}
+              aria-label="Open account menu"
+            >
+              <div className="brand-text">
+                <strong>Afra Crafts</strong>
+                <span>Handmade gifts</span>
+              </div>
+            </button>
+          </div>
 
           {popupOpen && (
             <LogoPopup
@@ -49,11 +51,11 @@ export default function App() {
         </div>
 
         {/* Right side: subtle admin badge only */}
-        <div className="header-right">
+        {/* <div className="header-right">
           {authRole === 'admin' && (
             <span className="admin-badge">Admin</span>
           )}
-        </div>
+        </div> */}
       </header>
 
       {/* ── Sidebar ─────────────────────────── */}
@@ -77,7 +79,7 @@ export default function App() {
       </Routes>
 
       <footer className="app-footer">
-        <p>© 2024 Afra Crafts · Handmade gifts for every occasion</p>
+        <p>© 2021 Afra Crafts · Handmade gifts for every occasion</p>
       </footer>
     </div>
   );

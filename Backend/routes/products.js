@@ -21,8 +21,8 @@ router.post('/', async (req, res) => {
   if (!category) return res.status(404).json({ error: 'Category not found' });
 
   const count = await Product.countDocuments({ category: categoryId });
-  if (count >= 5) {
-    return res.status(400).json({ error: 'Limit reached: maximum 5 products per category. Upgrade to Premium for more.' });
+  if (count >= 15) {
+    return res.status(400).json({ error: 'Limit reached: maximum 15 products per category.' });
   }
 
   const filteredSubs = Array.isArray(subImages) ? subImages.filter(Boolean) : [];

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from './utils/api.js';
 import { getImageUrl } from './data/imageAssets.js';
@@ -17,6 +17,40 @@ const HERO_QUOTES = [
 
 const WA_LINK = 'https://wa.me/918098621334?text=Hello%20Afra%20Crafts%2C%20I%20would%20like%20to%20enquire%20about%20your%20handmade%20crafts.';
 
+const WaIcon = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  </svg>
+);
+
+function useScrollDots(ref, count) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const children = Array.from(el.children);
+      if (!children.length) return;
+      const midX = el.scrollLeft + el.clientWidth / 2;
+      let closest = 0, minDist = Infinity;
+      children.forEach((child, i) => {
+        const dist = Math.abs(child.offsetLeft + child.offsetWidth / 2 - midX);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      setActiveIdx(closest);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [ref, count]);
+  const scrollTo = (idx) => {
+    const el = ref.current;
+    if (!el) return;
+    const child = el.children[idx];
+    if (child) child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  };
+  return [activeIdx, scrollTo];
+}
+
 export default function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const catParam = searchParams.get('cat');
@@ -31,6 +65,16 @@ export default function HomePage() {
   const [selectedOffer,    setSelectedOffer]    = useState(null);
   const [heroQuoteIdx,     setHeroQuoteIdx]     = useState(0);
   const [heroFading,       setHeroFading]       = useState(false);
+
+  const productsScrollRef = useRef(null);
+  const catOverviewRef    = useRef(null);
+
+  const visibleProducts = selectedCategory
+    ? products.filter(p => p.category === selectedCategory._id)
+    : products;
+
+  const [prodDotIdx,  scrollToProd]  = useScrollDots(productsScrollRef, visibleProducts.length);
+  const [catDotIdx,   scrollToCat]   = useScrollDots(catOverviewRef,    categories.length);
 
   /* ── Load data ───────────────────────────── */
   useEffect(() => {
@@ -82,10 +126,6 @@ export default function HomePage() {
     else setSearchParams({});
   };
 
-  const visibleProducts = selectedCategory
-    ? products.filter(p => p.category === selectedCategory._id)
-    : products;
-
   const getProductImage = (product) =>
     getProductImageUrl(product) ||
     getImageUrl(product.categorySlug?.replace(/-/g, '') || 'keychain', product.imageKey);
@@ -97,7 +137,12 @@ export default function HomePage() {
       <div className="hero-banner">
         <div className="hero-inner">
           <div className="hero-text-col">
-            <div className="hero-tag">✦ Handmade gifts</div>
+            <div className="hero-tag-row">
+              <div className="hero-tag">✦ Handmade gifts</div>
+              <a className="btn-whatsapp btn-whatsapp-icon" href={WA_LINK} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp us">
+                <WaIcon />
+              </a>
+            </div>
             <h1 className="hero-title">Discover crafts with heart</h1>
             <p className="hero-desc">
               Browse our handcrafted collections — keychains, ring albums, frames,
@@ -107,9 +152,6 @@ export default function HomePage() {
               {HERO_QUOTES[heroQuoteIdx]}
             </p>
           </div>
-          <a className="btn-whatsapp" href={WA_LINK} target="_blank" rel="noopener noreferrer">
-            <span>💬</span> WhatsApp us
-          </a>
         </div>
       </div>
 
@@ -199,22 +241,31 @@ export default function HomePage() {
                 <p>No collections available yet.</p>
               </div>
             ) : (
-              <div className="cat-overview-grid">
-                {categories.map(cat => (
-                  <div key={cat._id} className="cat-overview-card" onClick={() => selectCategory(cat)}>
-                    <div className="cat-overview-img">
-                      {(cat.imageData || cat.imageUrl)
-                        ? <img src={cat.imageData || cat.imageUrl} alt={cat.name} loading="lazy" />
-                        : <div className="cat-img-placeholder">🎁</div>
-                      }
+              <>
+                <div className="cat-overview-grid" ref={catOverviewRef}>
+                  {categories.map(cat => (
+                    <div key={cat._id} className="cat-overview-card" onClick={() => selectCategory(cat)}>
+                      <div className="cat-overview-img">
+                        {(cat.imageData || cat.imageUrl)
+                          ? <img src={cat.imageData || cat.imageUrl} alt={cat.name} loading="lazy" />
+                          : <div className="cat-img-placeholder">🎁</div>
+                        }
+                      </div>
+                      <div className="cat-overview-info">
+                        <p className="cat-overview-name">{cat.name}</p>
+                        <p className="cat-overview-count">{cat.itemCount || 0} products</p>
+                      </div>
                     </div>
-                    <div className="cat-overview-info">
-                      <p className="cat-overview-name">{cat.name}</p>
-                      <p className="cat-overview-count">{cat.itemCount || 0} products</p>
-                    </div>
+                  ))}
+                </div>
+                {categories.length > 1 && (
+                  <div className="scroll-dots">
+                    {categories.map((_, i) => (
+                      <button key={i} className={`scroll-dot${catDotIdx === i ? ' active' : ''}`} onClick={() => scrollToCat(i)} aria-label={`Go to collection ${i + 1}`} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
 
@@ -248,16 +299,25 @@ export default function HomePage() {
                 <p>No products in this collection yet. Check back soon!</p>
               </div>
             ) : (
-              <div className="products-grid">
-                {visibleProducts.map(product => (
-                  <ProductCard
-                    key={product._id}
-                    product={product}
-                    imageUrl={getProductImage(product)}
-                    onCardClick={() => setSelectedProduct(product)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="products-grid" ref={productsScrollRef}>
+                  {visibleProducts.map(product => (
+                    <ProductCard
+                      key={product._id}
+                      product={product}
+                      imageUrl={getProductImage(product)}
+                      onCardClick={() => setSelectedProduct(product)}
+                    />
+                  ))}
+                </div>
+                {visibleProducts.length > 1 && (
+                  <div className="scroll-dots">
+                    {visibleProducts.map((_, i) => (
+                      <button key={i} className={`scroll-dot${prodDotIdx === i ? ' active' : ''}`} onClick={() => scrollToProd(i)} aria-label={`Go to product ${i + 1}`} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

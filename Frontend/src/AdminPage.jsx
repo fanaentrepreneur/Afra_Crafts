@@ -27,6 +27,11 @@ export default function AdminPage() {
   const [expandedCat,  setExpandedCat]  = useState(null);
   const [expandedProd, setExpandedProd] = useState(null);
 
+  const [catCreating,  setCatCreating]  = useState(false);
+  const [prodCreating, setProdCreating] = useState(false);
+  const [offerCreating, setOfferCreating] = useState(false);
+  const [savingId,     setSavingId]     = useState(null);
+
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
@@ -57,6 +62,7 @@ export default function AdminPage() {
   const createCategory = async (e) => {
     e.preventDefault();
     if (categories.length >= CAT_LIMIT) return;
+    setCatCreating(true);
     try {
       const payload = { name: newCategory.name, description: newCategory.description };
       if (newCategory.imageFile) payload.imageData = await fileToBase64(newCategory.imageFile);
@@ -67,15 +73,20 @@ export default function AdminPage() {
       await loadData();
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to create category.', 'error');
+    } finally {
+      setCatCreating(false);
     }
   };
 
   const updateCategory = async (id) => {
     const upd = categoryEdit[id];
     if (!upd) return;
+    setSavingId(id);
     try {
       const payload = { name: upd.name, description: upd.description };
-      if (upd.imageFile) payload.imageData = await fileToBase64(upd.imageFile);
+      if (upd.imageFile) {
+        payload.imageData = await fileToBase64(upd.imageFile);
+      }
       await api.put(`/categories/${id}`, payload);
       toast('Category updated!', 'success');
       setCategoryEdit(p => ({ ...p, [id]: undefined }));
@@ -83,6 +94,8 @@ export default function AdminPage() {
       await loadData();
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to update.', 'error');
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -101,6 +114,7 @@ export default function AdminPage() {
   const createProduct = async (e) => {
     e.preventDefault();
     if (!newProduct.categoryId) { toast('Please select a category.', 'error'); return; }
+    setProdCreating(true);
     try {
       const converted = await Promise.all(
         newProduct.imageFiles.map(f => f ? fileToBase64(f) : null)
@@ -122,12 +136,15 @@ export default function AdminPage() {
       await loadData();
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to add product.', 'error');
+    } finally {
+      setProdCreating(false);
     }
   };
 
   const updateProduct = async (id) => {
     const upd = productEdit[id];
     if (!upd) return;
+    setSavingId(id);
     try {
       const newConverted = await Promise.all(
         (upd.newImageFiles || []).map(f => f ? fileToBase64(f) : null)
@@ -148,6 +165,8 @@ export default function AdminPage() {
       await loadData();
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to update.', 'error');
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -180,6 +199,7 @@ export default function AdminPage() {
   /* ── Offer CRUD ────────────────────────── */
   const createOffer = async (e) => {
     e.preventDefault();
+    setOfferCreating(true);
     try {
       const payload = {
         name: newOffer.name, description: newOffer.description,
@@ -193,6 +213,8 @@ export default function AdminPage() {
       await loadData();
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to create offer.', 'error');
+    } finally {
+      setOfferCreating(false);
     }
   };
 
@@ -220,7 +242,7 @@ export default function AdminPage() {
     if (expandedCat === id) { setExpandedCat(null); return; }
     setExpandedCat(id);
     if (!categoryEdit[id])
-      setCategoryEdit(p => ({ ...p, [id]: { name: cat.name, description: cat.description, imageFile: null } }));
+      setCategoryEdit(p => ({ ...p, [id]: { name: cat.name, description: cat.description, imageFile: null, existingImageData: cat.imageData || cat.imageUrl || '' } }));
   };
 
   const toggleProdExpand = (id, prod) => {
@@ -253,7 +275,7 @@ export default function AdminPage() {
             <div className="stats-row" style={{ marginTop: '1.2rem', marginBottom: 0 }}>
               <div className="stat-chip">
                 <span className="stat-chip-num">
-                  {categories.length}<span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--muted)' }}>/{CAT_LIMIT}</span>
+                  {categories.length}<span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--muted)' }}></span>
                 </span>
                 <span className="stat-chip-label">Categories</span>
               </div>
@@ -315,7 +337,9 @@ export default function AdminPage() {
                   onChange={e => setNewCategory({ ...newCategory, imageFile: e.target.files?.[0] || null })} />
               </div>
               <div className="form-actions">
-                <button className="btn-primary" type="submit">Save category</button>
+                <button className="btn-primary" type="submit" disabled={catCreating}>
+                  {catCreating ? 'Creating…' : 'Save category'}
+                </button>
               </div>
             </form>
           )}
@@ -394,7 +418,9 @@ export default function AdminPage() {
                 placeholder="Product details, materials, dimensions..." />
             </div>
             <div className="form-actions">
-              <button className="btn-primary" type="submit">Add product</button>
+              <button className="btn-primary" type="submit" disabled={prodCreating}>
+                {prodCreating ? 'Adding…' : 'Add product'}
+              </button>
             </div>
           </form>
         </div>
@@ -425,10 +451,10 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="admin-item-btns">
-                      <button className="btn-secondary btn-sm" onClick={() => toggleCatExpand(cat._id, cat)}>
-                        {isOpen ? 'Close' : 'Edit'}
+                      <button className="btn-icon btn-icon-edit" title={isOpen ? 'Close' : 'Edit'} onClick={() => toggleCatExpand(cat._id, cat)}>
+                        {isOpen ? '✕' : '✏'}
                       </button>
-                      <button className="btn-danger btn-sm" onClick={() => deleteCategory(cat._id)}>Delete</button>
+                      <button className="btn-icon btn-icon-delete" title="Delete" onClick={() => deleteCategory(cat._id)}>🗑</button>
                     </div>
                   </div>
                   {isOpen && (
@@ -444,12 +470,24 @@ export default function AdminPage() {
                           onChange={e => setCategoryEdit({ ...categoryEdit, [cat._id]: { ...es, description: e.target.value } })} />
                       </div>
                       <div className="form-field">
-                        <label className="form-label">Replace image</label>
+                        <label className="form-label">
+                          Image
+                          <span className="form-label-hint"> (leave empty to keep current)</span>
+                        </label>
+                        {es.existingImageData && !es.imageFile && (
+                          <div className="existing-images-row" style={{ marginBottom: '0.5rem' }}>
+                            <div className="existing-image-thumb">
+                              <img src={es.existingImageData} alt="Current" />
+                            </div>
+                          </div>
+                        )}
                         <input className="form-input" type="file" accept="image/*"
                           onChange={e => setCategoryEdit({ ...categoryEdit, [cat._id]: { ...es, imageFile: e.target.files?.[0] || null } })} />
                       </div>
                       <div className="form-actions">
-                        <button className="btn-primary btn-sm" onClick={() => updateCategory(cat._id)}>Save</button>
+                        <button className="btn-primary btn-sm" disabled={savingId === cat._id} onClick={() => updateCategory(cat._id)}>
+                          {savingId === cat._id ? 'Saving…' : 'Save'}
+                        </button>
                         <button className="btn-ghost btn-sm" onClick={() => setExpandedCat(null)}>Cancel</button>
                       </div>
                     </div>
@@ -491,10 +529,10 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="admin-item-btns">
-                      <button className="btn-secondary btn-sm" onClick={() => toggleProdExpand(prod._id, prod)}>
-                        {isOpen ? 'Close' : 'Edit'}
+                      <button className="btn-icon btn-icon-edit" title={isOpen ? 'Close' : 'Edit'} onClick={() => toggleProdExpand(prod._id, prod)}>
+                        {isOpen ? '✕' : '✏'}
                       </button>
-                      <button className="btn-danger btn-sm" onClick={() => deleteProduct(prod._id)}>Delete</button>
+                      <button className="btn-icon btn-icon-delete" title="Delete" onClick={() => deleteProduct(prod._id)}>🗑</button>
                     </div>
                   </div>
                   {isOpen && (
@@ -565,7 +603,9 @@ export default function AdminPage() {
                           onChange={e => setProductEdit({ ...productEdit, [prod._id]: { ...es, description: e.target.value } })} />
                       </div>
                       <div className="form-actions">
-                        <button className="btn-primary btn-sm" onClick={() => updateProduct(prod._id)}>Save changes</button>
+                        <button className="btn-primary btn-sm" disabled={savingId === prod._id} onClick={() => updateProduct(prod._id)}>
+                          {savingId === prod._id ? 'Saving…' : 'Save changes'}
+                        </button>
                         <button className="btn-ghost btn-sm" onClick={() => setExpandedProd(null)}>Cancel</button>
                       </div>
                     </div>
@@ -638,7 +678,9 @@ export default function AdminPage() {
               )}
             </div>
             <div className="form-actions">
-              <button className="btn-primary" type="submit">Create offer</button>
+              <button className="btn-primary" type="submit" disabled={offerCreating}>
+                {offerCreating ? 'Creating…' : 'Create offer'}
+              </button>
             </div>
           </form>
         </div>
@@ -655,7 +697,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="admin-item-btns">
-                    <button className="btn-danger btn-sm" onClick={() => deleteOffer(offer._id)}>Delete</button>
+                    <button className="btn-icon btn-icon-delete" title="Delete" onClick={() => deleteOffer(offer._id)}>🗑</button>
                   </div>
                 </div>
               </div>
