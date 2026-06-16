@@ -87,17 +87,24 @@ h1, h2, h3, h4 {
 
 /* ─── Header ─────────────────────────────── */
 .app-header {
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  display: flex;
   align-items: center;
-  gap: 0;
+  position: relative;
   padding: 1rem 1.5rem;
   margin-bottom: 2rem;
-  background: rgba(255,255,255,0.88);
+  background: linear-gradient(120deg,
+    rgba(255,195,220,0.88) 0%,
+    rgba(255,248,252,0.93) 28%,
+    rgba(235,218,255,0.90) 58%,
+    rgba(255,237,200,0.88) 82%,
+    rgba(255,210,225,0.88) 100%
+  );
+  background-size: 300% 300%;
+  animation: headerGradientFlow 10s ease infinite;
   backdrop-filter: blur(18px);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255,255,255,0.9);
-  box-shadow: var(--shadow);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow: 0 4px 24px rgba(155,75,110,0.15);
 }
 
 .app-brand {
@@ -123,18 +130,27 @@ h1, h2, h3, h4 {
   box-shadow: 0 4px 12px rgba(155,75,110,0.35);
 }
 
+.brand-text {
+  text-align: center;
+}
+
 .brand-text strong {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: nowrap;
   font-family: var(--font-serif);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 .brand-text span {
   display: block;
-  font-size: 0.8rem;
-  color: var(--muted);
+  font-size: 0.72rem;
+  color: #b05070;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -2510,10 +2526,12 @@ h1, h2, h3, h4 {
 
 /* ─── Brand logo image ───────────────────── */
 .brand-popup-wrap {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
-  justify-self: center;
+  z-index: 10;
 }
 
 .app-brand-display {
@@ -2822,10 +2840,10 @@ h1, h2, h3, h4 {
 
 /* ─── Header mobile ──────────────────────── */
 @media (max-width: 480px) {
-  .app-header { padding: 0.5rem 0.8rem; grid-template-columns: 40px 1fr 40px; }
+  .app-header { padding: 0.6rem 1rem; }
   .brand-logo-img { width: 36px; height: 36px; }
-  .brand-text strong { font-size: 0.95rem; }
-  .brand-text span { display: none; }
+  .brand-text strong { font-size: 1rem; }
+  .brand-subtitle { font-size: 0.62rem; letter-spacing: 0.10em; }
   .header-right { width: 40px; }
   .admin-badge { font-size: 0.68rem; padding: 0.22rem 0.55rem; }
 }
@@ -2953,6 +2971,13 @@ h1, h2, h3, h4 {
 .btn-icon-delete:hover {
   background: rgba(185,28,28,0.07);
   border-color: #b91c1c;
+}
+
+/* ─── Header gradient shift ──────────────── */
+@keyframes headerGradientFlow {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3094,25 +3119,60 @@ h1, h2, h3, h4 {
 
 /* ─── Brand name letter entrance animation ───────────── */
 @keyframes letterFromLeft {
-  from { transform: translateX(-22px); opacity: 0; filter: blur(3px); }
-  to   { transform: translateX(0);     opacity: 1; filter: blur(0);   }
+  0%   { transform: translateX(-20px) translateY(-22px); opacity: 0; }
+  52%  { transform: translateX(2px)   translateY(5px);   opacity: 1; }
+  70%  { transform: translateX(0)     translateY(-3px);              }
+  84%  { transform: translateX(0)     translateY(2px);               }
+  100% { transform: translateX(0)     translateY(0);                 }
 }
 @keyframes letterFromRight {
-  from { transform: translateX(22px);  opacity: 0; filter: blur(3px); }
-  to   { transform: translateX(0);     opacity: 1; filter: blur(0);   }
+  0%   { transform: translateX(20px)  translateY(-22px); opacity: 0; }
+  52%  { transform: translateX(-2px)  translateY(5px);   opacity: 1; }
+  70%  { transform: translateX(0)     translateY(-3px);              }
+  84%  { transform: translateX(0)     translateY(2px);               }
+  100% { transform: translateX(0)     translateY(0);                 }
 }
 @keyframes subtitleFade {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
 .brand-letter {
-  display: inline-block;
-  animation-duration: 0.48s;
+  background: linear-gradient(160deg, #5c1a3a 0%, #b84870 55%, #e8809a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation-duration: 0.6s;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
+}
+.brand-word-space {
+  width: 0.32em;
 }
 .brand-letter-left  { animation-name: letterFromLeft; }
 .brand-letter-right { animation-name: letterFromRight; }
 .brand-subtitle {
   animation: subtitleFade 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* ─── Header craft icon (right side) ────── */
+@keyframes craftBob {
+  0%, 100% { transform: translateY(0) rotate(0deg);   }
+  30%       { transform: translateY(-5px) rotate(-12deg); }
+  60%       { transform: translateY(-2px) rotate(6deg);   }
+}
+@keyframes craftSpin {
+  0%   { transform: rotate(0deg);   }
+  100% { transform: rotate(360deg); }
+}
+.header-craft-icon {
+  margin-left: auto;
+  font-size: 1.4rem;
+  line-height: 1;
+  animation: craftBob 2.8s ease-in-out infinite;
+  flex-shrink: 0;
+  cursor: default;
+  user-select: none;
+}
+.header-craft-icon:hover {
+  animation: craftSpin 0.6s ease-in-out forwards;
 }

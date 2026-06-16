@@ -43,7 +43,7 @@ export default function App() {
                       style={{ animationDelay: `${0.05 + i * 0.07}s` }}
                     >{ch}</span>
                   ))}
-                  {' '}
+                  <span className="brand-word-space" />
                   {'Crafts'.split('').map((ch, i) => (
                     <span
                       key={i + 5}
@@ -65,12 +65,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Right side: subtle admin badge only */}
-        {/* <div className="header-right">
-          {authRole === 'admin' && (
-            <span className="admin-badge">Admin</span>
-          )}
-        </div> */}
       </header>
 
       {/* ── Sidebar ─────────────────────────── */}
