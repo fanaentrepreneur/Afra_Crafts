@@ -26,18 +26,33 @@ export default function App() {
           <span className="ham-line" />
         </button>
 
-        {/* Brand — logo is display-only; clicking the name text opens popup */}
+        {/* Brand name — click to open sign-in / profile popup */}
         <div className="brand-popup-wrap">
           <div className="app-brand-display">
-            <img src={logoImg} alt="Afra Crafts" className="brand-logo-img" />
             <button
               className="app-brand-btn"
               onClick={() => setPopupOpen(p => !p)}
               aria-label="Open account menu"
             >
               <div className="brand-text">
-                <strong>Afra Crafts</strong>
-                <span>Handmade gifts</span>
+                <strong>
+                  {'Afra'.split('').map((ch, i) => (
+                    <span
+                      key={i}
+                      className="brand-letter brand-letter-left"
+                      style={{ animationDelay: `${0.05 + i * 0.07}s` }}
+                    >{ch}</span>
+                  ))}
+                  {' '}
+                  {'Crafts'.split('').map((ch, i) => (
+                    <span
+                      key={i + 5}
+                      className="brand-letter brand-letter-right"
+                      style={{ animationDelay: `${0.33 + i * 0.07}s` }}
+                    >{ch}</span>
+                  ))}
+                </strong>
+                <span className="brand-subtitle" style={{ animationDelay: '0.80s' }}>Handmade gifts</span>
               </div>
             </button>
           </div>

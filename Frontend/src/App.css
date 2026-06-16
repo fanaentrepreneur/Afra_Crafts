@@ -32,7 +32,7 @@
   --shadow-lg: 0 20px 60px rgba(30, 20, 18, 0.14);
 
   --radius-xs: 8px;
-  --radius-sm: 12px;
+  --radius-sm: 18px;
   --radius:    18px;
   --radius-lg: 24px;
   --radius-xl: 32px;
@@ -87,10 +87,10 @@ h1, h2, h3, h4 {
 
 /* ─── Header ─────────────────────────────── */
 .app-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0;
   padding: 1rem 1.5rem;
   margin-bottom: 2rem;
   background: rgba(255,255,255,0.88);
@@ -2036,8 +2036,8 @@ h1, h2, h3, h4 {
   gap: 5px;
   width: 40px;
   height: 40px;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
+  background: white;
+  border: white;
   border-radius: var(--radius-sm);
   padding: 8px 10px;
   cursor: pointer;
@@ -2511,9 +2511,9 @@ h1, h2, h3, h4 {
 /* ─── Brand logo image ───────────────────── */
 .brand-popup-wrap {
   position: relative;
-  flex: 1;
   display: flex;
   justify-content: center;
+  justify-self: center;
 }
 
 .app-brand-display {
@@ -2720,13 +2720,12 @@ h1, h2, h3, h4 {
 
 /* ─── WhatsApp icon-only button ──────────── */
 .btn-whatsapp-icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border-radius: 50%;
   flex-shrink: 0;
   align-self: flex-start;
-  margin-top: 0.4rem;
 }
 
 /* ─── Hero mobile fix ────────────────────── */
@@ -2823,11 +2822,11 @@ h1, h2, h3, h4 {
 
 /* ─── Header mobile ──────────────────────── */
 @media (max-width: 480px) {
-  .app-header { padding: 0.75rem 1rem; gap: 0.5rem; }
+  .app-header { padding: 0.5rem 0.8rem; grid-template-columns: 40px 1fr 40px; }
   .brand-logo-img { width: 36px; height: 36px; }
   .brand-text strong { font-size: 0.95rem; }
   .brand-text span { display: none; }
-  .header-right { width: 60px; }
+  .header-right { width: 40px; }
   .admin-badge { font-size: 0.68rem; padding: 0.22rem 0.55rem; }
 }
 
@@ -2874,6 +2873,50 @@ h1, h2, h3, h4 {
   max-width: 100%;
 }
 
+/* ─── Hero logo watermark ────────────────── */
+.hero-logo-watermark {
+  position: absolute;
+  bottom: -30px;
+  right: -30px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 0.13;
+  pointer-events: none;
+  user-select: none;
+  filter: grayscale(20%);
+}
+
+/* ─── Scroll reveal ──────────────────────── */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+[data-reveal].revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-reveal][data-delay="1"] { transition-delay: 0.12s; }
+[data-reveal][data-delay="2"] { transition-delay: 0.24s; }
+[data-reveal][data-delay="3"] { transition-delay: 0.36s; }
+
+/* ─── Enhanced card hover lift ───────────── */
+.product-card {
+  transition: transform 0.28s cubic-bezier(0.34,1.3,0.64,1), box-shadow 0.28s ease;
+}
+
+.cat-overview-card {
+  transition: transform 0.28s cubic-bezier(0.34,1.3,0.64,1), box-shadow 0.28s ease;
+}
+
+.offer-card {
+  transition: transform 0.28s cubic-bezier(0.34,1.3,0.64,1), box-shadow 0.28s ease;
+}
+
 /* ─── Icon buttons (edit / delete) ──────── */
 .btn-icon {
   width: 34px;
@@ -2910,4 +2953,166 @@ h1, h2, h3, h4 {
 .btn-icon-delete:hover {
   background: rgba(185,28,28,0.07);
   border-color: #b91c1c;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MICRO-ANIMATIONS
+═══════════════════════════════════════════════════════════ */
+
+/* Lock icon — drops in, bounces, shakes "click shut" */
+@keyframes lockDrop {
+  0%        { transform: translateY(-22px) rotate(-22deg); opacity: 0.25; }
+  32%       { transform: translateY(0)     rotate(0deg);   opacity: 0.95; }
+  43%       { transform: translateY(-7px); }
+  53%       { transform: translateY(0); }
+  63%       { transform: rotate(-10deg); }
+  73%       { transform: rotate(10deg); }
+  81%       { transform: rotate(-5deg); }
+  88%       { transform: rotate(5deg); }
+  95%, 100% { transform: rotate(0deg);   opacity: 0.4; }
+}
+.offer-lock-icon {
+  display: inline-block;
+  animation: lockDrop 3.4s ease-in-out infinite;
+  animation-delay: 0.7s;
+  transform-origin: center bottom;
+}
+
+/* WhatsApp hero button — pulsing ring (incoming-call feel) */
+@keyframes waPulse {
+  0%   { box-shadow: 0 0 0 0    rgba(37,211,102,0.65), 0 4px 14px rgba(37,211,102,0.3); }
+  65%  { box-shadow: 0 0 0 12px rgba(37,211,102,0),    0 4px 14px rgba(37,211,102,0.3); }
+  100% { box-shadow: 0 0 0 0    rgba(37,211,102,0),    0 4px 14px rgba(37,211,102,0.3); }
+}
+.btn-whatsapp-icon {
+  animation: waPulse 2s ease-out infinite;
+  transition: transform 0.18s ease;
+}
+.btn-whatsapp-icon:hover {
+  animation: none;
+  transform: scale(1.14);
+  box-shadow: 0 6px 22px rgba(37,211,102,0.55);
+}
+
+/* Sparkle ✦ — twinkle & spin */
+@keyframes sparkleTwinkle {
+  0%, 100% { transform: scale(1)    rotate(0deg);   opacity: 1;    }
+  22%       { transform: scale(1.5)  rotate(20deg);  opacity: 0.7;  }
+  50%       { transform: scale(0.78) rotate(0deg);   opacity: 1;    }
+  78%       { transform: scale(1.35) rotate(-18deg); opacity: 0.82; }
+}
+.sparkle-star {
+  display: inline-block;
+  animation: sparkleTwinkle 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Sidebar ✦ icons twinkle with stagger */
+.sidebar-cat-icon {
+  display: inline-block;
+  animation: sparkleTwinkle 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+.sidebar-cat-item:nth-child(2n) .sidebar-cat-icon { animation-delay: 0.7s; }
+.sidebar-cat-item:nth-child(3n) .sidebar-cat-icon { animation-delay: 1.4s; }
+
+/* Offer badge — wiggle to draw attention */
+@keyframes badgeWiggle {
+  0%, 72%, 100% { transform: rotate(0deg);  }
+  8%             { transform: rotate(-10deg); }
+  18%            { transform: rotate(10deg); }
+  28%            { transform: rotate(-7deg); }
+  38%            { transform: rotate(7deg);  }
+  48%            { transform: rotate(-3deg); }
+  58%            { transform: rotate(3deg);  }
+}
+.offer-badge {
+  animation: badgeWiggle 4.2s ease-in-out infinite;
+  animation-delay: 1.2s;
+  transform-origin: center;
+}
+
+/* Empty state icon — gentle float */
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0px);   }
+  50%       { transform: translateY(-10px); }
+}
+.empty-state-icon {
+  display: inline-block;
+  animation: iconFloat 2.6s ease-in-out infinite;
+}
+
+/* Sidebar cat items — slide in from left when sidebar opens */
+@keyframes slideInLeft {
+  from { transform: translateX(-24px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.sidebar.open .sidebar-cat-item {
+  animation: slideInLeft 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(2) { animation-delay: 0.05s; }
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(3) { animation-delay: 0.10s; }
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(4) { animation-delay: 0.15s; }
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(5) { animation-delay: 0.20s; }
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(6) { animation-delay: 0.25s; }
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(7) { animation-delay: 0.30s; }
+.sidebar.open .sidebar-section .sidebar-cat-item:nth-child(8) { animation-delay: 0.35s; }
+
+/* Hamburger hover — lines ripple in sequence */
+@keyframes hamRipple {
+  0%   { transform: scaleX(1);    opacity: 1;   }
+  45%  { transform: scaleX(0.52); opacity: 0.5; }
+  100% { transform: scaleX(1);    opacity: 1;   }
+}
+.ham-line { transform-origin: left center; }
+.hamburger-btn:hover .ham-line:nth-child(1) { animation: hamRipple 0.5s 0.00s ease both; }
+.hamburger-btn:hover .ham-line:nth-child(2) { animation: hamRipple 0.5s 0.08s ease both; }
+.hamburger-btn:hover .ham-line:nth-child(3) { animation: hamRipple 0.5s 0.16s ease both; }
+
+/* Brand name — golden shimmer on hover */
+@keyframes textShimmer {
+  0%   { background-position: -220% center; }
+  100% { background-position:  220% center; }
+}
+.app-brand-btn:hover .brand-letter {
+  background: linear-gradient(90deg, var(--primary) 0%, #c2547a 50%, #f59e0b 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 1.3s linear infinite;
+}
+
+/* Cat overview card — image gently tilts on hover */
+.cat-overview-img img {
+  transition: transform 0.3s ease;
+}
+.cat-overview-card:hover .cat-overview-img img {
+  transform: scale(1.07) rotate(1.8deg);
+  transition: transform 0.48s cubic-bezier(0.34,1.3,0.64,1);
+}
+
+/* ─── Brand name letter entrance animation ───────────── */
+@keyframes letterFromLeft {
+  from { transform: translateX(-22px); opacity: 0; filter: blur(3px); }
+  to   { transform: translateX(0);     opacity: 1; filter: blur(0);   }
+}
+@keyframes letterFromRight {
+  from { transform: translateX(22px);  opacity: 0; filter: blur(3px); }
+  to   { transform: translateX(0);     opacity: 1; filter: blur(0);   }
+}
+@keyframes subtitleFade {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.brand-letter {
+  display: inline-block;
+  animation-duration: 0.48s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+.brand-letter-left  { animation-name: letterFromLeft; }
+.brand-letter-right { animation-name: letterFromRight; }
+.brand-subtitle {
+  animation: subtitleFade 0.4s cubic-bezier(0.22,1,0.36,1) both;
 }

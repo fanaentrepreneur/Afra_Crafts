@@ -12,7 +12,11 @@ export default function Sidebar({ isOpen, onClose, authRole, onAuthChange }) {
   useEffect(() => {
     if (isOpen) {
       api.get('/categories').then(r => setCategories(r.data)).catch(() => {});
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
+    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   const goTo = (path) => { navigate(path); onClose(); };

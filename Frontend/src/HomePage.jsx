@@ -6,13 +6,14 @@ import { getProductImageUrl } from './utils/imageUpload.js';
 import ProductCard from './components/ProductCard.jsx';
 import ProductModal from './components/ProductModal.jsx';
 import OfferModal from './components/OfferModal.jsx';
+import logoImg from '../assests/Logo/WhatsApp Image 2026-06-13 at 21.45.14.jpeg';
 
 const HERO_QUOTES = [
-  '"Every gift tells a story — let yours be handcrafted with love."',
+  '"Every gift tells a story - let yours be handcrafted with love."',
   '"Made with care, remembered forever."',
   '"The finest gifts come wrapped in creativity."',
   '"A handcrafted gift holds a piece of the maker\'s soul."',
-  '"Where creativity meets care — that\'s where Afra Crafts lives."',
+  '"Where creativity meets care - that\'s where Afra Crafts lives."',
 ];
 
 const WA_LINK = 'https://wa.me/918098621334?text=Hello%20Afra%20Crafts%2C%20I%20would%20like%20to%20enquire%20about%20your%20handmade%20crafts.';
@@ -22,6 +23,25 @@ const WaIcon = () => (
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
   </svg>
 );
+
+function useScrollReveal() {
+  useEffect(() => {
+    const els = document.querySelectorAll('[data-reveal]');
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('revealed');
+            obs.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
+    );
+    els.forEach(el => obs.observe(el));
+    return () => obs.disconnect();
+  });
+}
 
 function useScrollDots(ref, count) {
   const [activeIdx, setActiveIdx] = useState(0);
@@ -75,6 +95,8 @@ export default function HomePage() {
 
   const [prodDotIdx,  scrollToProd]  = useScrollDots(productsScrollRef, visibleProducts.length);
   const [catDotIdx,   scrollToCat]   = useScrollDots(catOverviewRef,    categories.length);
+
+  useScrollReveal();
 
   /* ── Load data ───────────────────────────── */
   useEffect(() => {
@@ -135,20 +157,21 @@ export default function HomePage() {
 
       {/* ── Hero ─────────────────────────────── */}
       <div className="hero-banner">
+        <img src={logoImg} alt="" className="hero-logo-watermark" aria-hidden="true" />
         <div className="hero-inner">
           <div className="hero-text-col">
             <div className="hero-tag-row">
-              <div className="hero-tag">✦ Handmade gifts</div>
+              <div className="hero-tag"><span className="sparkle-star">✦</span> Handmade gifts</div>
               <a className="btn-whatsapp btn-whatsapp-icon" href={WA_LINK} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp us">
                 <WaIcon />
               </a>
             </div>
-            <h1 className="hero-title">Discover crafts with heart</h1>
-            <p className="hero-desc">
+            <h1 className="hero-title" data-reveal data-delay="1">Discover crafts with heart</h1>
+            <p className="hero-desc" data-reveal data-delay="2">
               Browse our handcrafted collections — keychains, ring albums, frames,
               hampers and more. Every piece made with love, perfect for gifting.
             </p>
-            <p className={`hero-quote-text${heroFading ? ' fading' : ''}`}>
+            <p className={`hero-quote-text${heroFading ? ' fading' : ''}`} data-reveal data-delay="3">
               {HERO_QUOTES[heroQuoteIdx]}
             </p>
           </div>
@@ -156,8 +179,8 @@ export default function HomePage() {
       </div>
 
       {/* ── Offers ───────────────────────────── */}
-      <div className="offers-section">
-        <div className="offers-label">✦ Current Offers</div>
+      <div className="offers-section" data-reveal>
+        <div className="offers-label"><span className="sparkle-star">✦</span> Current Offers</div>
         {!loading && (
           offers.length === 0 ? (
             <div className="offers-grid">
@@ -192,7 +215,7 @@ export default function HomePage() {
 
       {/* ── Category Tabs ────────────────────── */}
       {!loading && categories.length > 0 && (
-        <div className="cat-tab-section">
+        <div className="cat-tab-section" data-reveal>
           <div className="cat-tab-label">Browse by collection</div>
           <div className="cat-tabs">
             <button
@@ -216,7 +239,7 @@ export default function HomePage() {
       )}
 
       {/* ── Main content ─────────────────────── */}
-      <div className="products-section">
+      <div className="products-section" data-reveal>
         {loading ? (
           <div className="loading-state">
             <span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" />
