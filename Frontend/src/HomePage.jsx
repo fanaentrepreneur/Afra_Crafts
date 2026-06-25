@@ -51,10 +51,11 @@ function useScrollDots(ref, count) {
     const update = () => {
       const children = Array.from(el.children);
       if (!children.length) return;
-      const midX = el.scrollLeft + el.clientWidth / 2;
+      const containerCenter = el.getBoundingClientRect().left + el.clientWidth / 2;
       let closest = 0, minDist = Infinity;
       children.forEach((child, i) => {
-        const dist = Math.abs(child.offsetLeft + child.offsetWidth / 2 - midX);
+        const rect = child.getBoundingClientRect();
+        const dist = Math.abs(rect.left + rect.width / 2 - containerCenter);
         if (dist < minDist) { minDist = dist; closest = i; }
       });
       setActiveIdx(closest);
