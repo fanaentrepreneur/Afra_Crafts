@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from './utils/api.js';
 import { getImageUrl } from './data/imageAssets.js';
@@ -43,10 +43,12 @@ function useScrollReveal() {
   });
 }
 
-function useScrollDots(ref, count) {
+function useScrollDots(count) {
   const [activeIdx, setActiveIdx] = useState(0);
+  const [el, setEl] = useState(null);
+  const setRef = useCallback(node => setEl(node), []);
+
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
     const update = () => {
       const children = Array.from(el.children);
@@ -63,15 +65,17 @@ function useScrollDots(ref, count) {
     let timer;
     const onScroll = () => { clearTimeout(timer); timer = setTimeout(update, 120); };
     el.addEventListener('scroll', onScroll, { passive: true });
+    update();
     return () => { el.removeEventListener('scroll', onScroll); clearTimeout(timer); };
-  }, [ref, count]);
+  }, [el, count]);
+
   const scrollTo = (idx) => {
-    const el = ref.current;
     if (!el) return;
     const child = el.children[idx];
     if (child) child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
   };
-  return [activeIdx, scrollTo];
+
+  return [activeIdx, scrollTo, setRef];
 }
 
 export default function HomePage() {
@@ -89,15 +93,13 @@ export default function HomePage() {
   const [heroQuoteIdx,     setHeroQuoteIdx]     = useState(0);
   const [heroFading,       setHeroFading]       = useState(false);
 
-  const productsScrollRef = useRef(null);
-  const catOverviewRef    = useRef(null);
 
   const visibleProducts = selectedCategory
     ? products.filter(p => p.category === selectedCategory._id)
     : products;
 
-  const [prodDotIdx,  scrollToProd]  = useScrollDots(productsScrollRef, visibleProducts.length);
-  const [catDotIdx,   scrollToCat]   = useScrollDots(catOverviewRef,    categories.length);
+  const [prodDotIdx,  scrollToProd,  prodRef]  = useScrollDots(visibleProducts.length);
+  const [catDotIdx,   scrollToCat,   catRef]   = useScrollDots(categories.length);
 
   useScrollReveal();
 
@@ -268,7 +270,7 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                <div className="cat-overview-grid" ref={catOverviewRef}>
+                <div className="cat-overview-grid" ref={catRef}>
                   {categories.map(cat => (
                     <div key={cat._id} className="cat-overview-card" onClick={() => selectCategory(cat)}>
                       <div className="cat-overview-img">
@@ -326,7 +328,7 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                <div className="products-grid" ref={productsScrollRef}>
+                <div className="products-grid" ref={prodRef}>
                   {visibleProducts.map(product => (
                     <ProductCard
                       key={product._id}
