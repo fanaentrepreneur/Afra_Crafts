@@ -48,7 +48,7 @@ function useScrollDots(ref, count) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const onScroll = () => {
+    const update = () => {
       const children = Array.from(el.children);
       if (!children.length) return;
       const midX = el.scrollLeft + el.clientWidth / 2;
@@ -59,14 +59,16 @@ function useScrollDots(ref, count) {
       });
       setActiveIdx(closest);
     };
+    let timer;
+    const onScroll = () => { clearTimeout(timer); timer = setTimeout(update, 120); };
     el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
+    return () => { el.removeEventListener('scroll', onScroll); clearTimeout(timer); };
   }, [ref, count]);
   const scrollTo = (idx) => {
     const el = ref.current;
     if (!el) return;
     const child = el.children[idx];
-    if (child) child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    if (child) child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
   };
   return [activeIdx, scrollTo];
 }
