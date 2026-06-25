@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 
 export default function ProductModal({ product, onClose }) {
-  const images = product?.subImages?.length > 0
-    ? product.subImages.filter(Boolean)
-    : [product?.imageData || product?.imageUrl].filter(Boolean);
+  const imageList = product?.images?.length > 0
+    ? product.images.filter(img => img?.imageData)
+    : product?.subImages?.length > 0
+      ? product.subImages.filter(Boolean).map((imgData, i) => ({
+          imageData: imgData,
+          price: i === 0 ? product.price : null,
+          description: i === 0 ? product.description : null,
+        }))
+      : [{ imageData: product?.imageData || product?.imageUrl || '', price: product?.price, description: product?.description }];
 
   const [idx, setIdx] = useState(0);
   const touchX = useRef(null);
@@ -22,8 +28,8 @@ export default function ProductModal({ product, onClose }) {
 
   if (!product) return null;
 
-  const prev = () => setIdx(i => (i - 1 + images.length) % images.length);
-  const next = () => setIdx(i => (i + 1) % images.length);
+  const prev = () => setIdx(i => (i - 1 + imageList.length) % imageList.length);
+  const next = () => setIdx(i => (i + 1) % imageList.length);
 
   const onTouchStart = (e) => { touchX.current = e.touches[0].clientX; };
   const onTouchEnd  = (e) => {
@@ -39,7 +45,7 @@ export default function ProductModal({ product, onClose }) {
         <button className="modal-close" onClick={onClose}>×</button>
 
         {/* Carousel */}
-        {images.length > 0 ? (
+        {imageList.length > 0 && imageList[0]?.imageData ? (
           <div
             className="modal-carousel"
             onTouchStart={onTouchStart}
@@ -48,18 +54,18 @@ export default function ProductModal({ product, onClose }) {
             <div className="modal-carousel-track">
               <img
                 key={idx}
-                src={images[idx]}
+                src={imageList[idx]?.imageData}
                 alt={`${product.name} — image ${idx + 1}`}
                 className="modal-carousel-img"
               />
             </div>
 
-            {images.length > 1 && (
+            {imageList.length > 1 && (
               <>
                 <button className="carousel-arrow carousel-prev" onClick={prev}>‹</button>
                 <button className="carousel-arrow carousel-next" onClick={next}>›</button>
                 <div className="carousel-dots">
-                  {images.map((_, i) => (
+                  {imageList.map((_, i) => (
                     <button
                       key={i}
                       className={`carousel-dot${i === idx ? ' active' : ''}`}
@@ -78,9 +84,9 @@ export default function ProductModal({ product, onClose }) {
         {/* Details */}
         <div className="modal-details">
           <h2 className="modal-product-name">{product.name}</h2>
-          <p className="modal-product-price">₹{Number(product.price).toFixed(0)}</p>
-          {product.description && (
-            <p className="modal-product-desc">{product.description}</p>
+          <p className="modal-product-price">₹{Number(imageList[idx]?.price ?? product.price).toFixed(0)}</p>
+          {(imageList[idx]?.description || product.description) && (
+            <p className="modal-product-desc">{imageList[idx]?.description || product.description}</p>
           )}
           <p className="modal-product-cat">{product.categoryName}</p>
         </div>

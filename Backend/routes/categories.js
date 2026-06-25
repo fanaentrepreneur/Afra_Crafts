@@ -5,27 +5,26 @@ import Product from '../models/Product.js';
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const categories = await Category.find().sort({ name: 1 });
-  const categoriesWithCount = await Promise.all(
-    categories.map(async (category) => {
-      const count = await Product.countDocuments({ category: category._id });
-      return {
-        _id: category._id,
-        name: category.name,
-        slug: category.slug,
-        description: category.description,
-        imageUrl: category.imageUrl,
-        imageData: category.imageData,
-        itemCount: count,
-      };
-    })
-  );
-  res.json(categoriesWithCount);
+  const [categories, counts] = await Promise.all([
+    Category.find().sort({ name: 1 }),
+    Product.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }]),
+  ]);
+  const countMap = Object.fromEntries(counts.map(c => [c._id.toString(), c.count]));
+  res.json(categories.map(cat => ({
+    _id: cat._id,
+    name: cat.name,
+    slug: cat.slug,
+    description: cat.description,
+    imageUrl: cat.imageUrl,
+    imageData: cat.imageData,
+    itemCount: countMap[cat._id.toString()] || 0,
+  })));
 });
 
 router.post('/', async (req, res) => {
   const { name, description, imageUrl, imageData } = req.body;
   if (!name) return res.status(400).json({ error: 'Category name is required' });
+  if (!imageData && !imageUrl) return res.status(400).json({ error: 'Category image is required' });
   const total = await Category.countDocuments();
   if (total >= 5) return res.status(400).json({ error: 'Limit reached: maximum 5 categories. Premium option can unlock more.' });
 

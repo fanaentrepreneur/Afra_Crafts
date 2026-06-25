@@ -85,8 +85,10 @@ export default function HomePage() {
   const [categories,       setCategories]       = useState([]);
   const [products,         setProducts]         = useState([]);
   const [offers,           setOffers]           = useState([]);
+  const [offerProducts,    setOfferProducts]    = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading,          setLoading]          = useState(true);
+  const [productsLoading,  setProductsLoading]  = useState(false);
   const [error,            setError]            = useState('');
   const [selectedProduct,  setSelectedProduct]  = useState(null);
   const [selectedOffer,    setSelectedOffer]    = useState(null);
@@ -94,9 +96,7 @@ export default function HomePage() {
   const [heroFading,       setHeroFading]       = useState(false);
 
 
-  const visibleProducts = selectedCategory
-    ? products.filter(p => p.category === selectedCategory._id)
-    : products;
+  const visibleProducts = products;
 
   const [prodDotIdx,  scrollToProd,  prodRef]  = useScrollDots(visibleProducts.length);
   const [catDotIdx,   scrollToCat,   catRef]   = useScrollDots(categories.length);
@@ -108,13 +108,11 @@ export default function HomePage() {
     (async () => {
       setLoading(true);
       try {
-        const [catRes, prodRes, offerRes] = await Promise.all([
+        const [catRes, offerRes] = await Promise.all([
           api.get('/categories'),
-          api.get('/products'),
           api.get('/offers'),
         ]);
         setCategories(catRes.data);
-        setProducts(prodRes.data);
         setOffers(offerRes.data);
       } catch {
         setError('Unable to load collections right now. Please refresh.');
@@ -124,14 +122,25 @@ export default function HomePage() {
     })();
   }, []);
 
-  /* ── Sync URL param → selectedCategory ───── */
+  /* ── Sync URL param → selectedCategory + lazy-load products ── */
   useEffect(() => {
     if (!categories.length) return;
     if (catParam) {
       const found = categories.find(c => c._id === catParam);
-      setSelectedCategory(found || null);
+      if (found) {
+        setSelectedCategory(found);
+        setProductsLoading(true);
+        api.get(`/products?category=${found._id}`)
+          .then(res => setProducts(res.data))
+          .catch(() => setProducts([]))
+          .finally(() => setProductsLoading(false));
+      } else {
+        setSelectedCategory(null);
+        setProducts([]);
+      }
     } else {
       setSelectedCategory(null);
+      setProducts([]);
     }
   }, [catParam, categories]);
 
@@ -148,9 +157,22 @@ export default function HomePage() {
   }, []);
 
   const selectCategory = (cat) => {
-    setSelectedCategory(cat);
     if (cat) setSearchParams({ cat: cat._id });
     else setSearchParams({});
+  };
+
+  const handleOfferClick = async (offer) => {
+    setSelectedOffer(offer);
+    if (offer.productIds?.length > 0) {
+      try {
+        const res = await api.get(`/products?ids=${offer.productIds.join(',')}`);
+        setOfferProducts(res.data);
+      } catch {
+        setOfferProducts([]);
+      }
+    } else {
+      setOfferProducts([]);
+    }
   };
 
   const getProductImage = (product) =>
@@ -201,7 +223,7 @@ export default function HomePage() {
                 <div
                   key={offer._id}
                   className={`offer-card${!offer.imageData ? ' offer-card-no-img' : ''}`}
-                  onClick={() => setSelectedOffer(offer)}
+                  onClick={() => handleOfferClick(offer)}
                 >
                   {offer.imageData && <img className="offer-card-img" src={offer.imageData} alt={offer.name} />}
                   {offer.imageData && <div className="offer-card-gradient" />}
@@ -249,6 +271,11 @@ export default function HomePage() {
           <div className="loading-state">
             <span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" />
             <p style={{ marginTop: '1rem' }}>Loading collections…</p>
+          </div>
+        ) : productsLoading ? (
+          <div className="loading-state">
+            <span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" />
+            <p style={{ marginTop: '1rem' }}>Loading products…</p>
           </div>
         ) : error ? (
           <div className="empty-state">
@@ -357,9 +384,9 @@ export default function HomePage() {
       {selectedOffer && (
         <OfferModal
           offer={selectedOffer}
-          products={products}
-          onClose={() => setSelectedOffer(null)}
-          onProductClick={p => { setSelectedOffer(null); setSelectedProduct(p); }}
+          products={offerProducts}
+          onClose={() => { setSelectedOffer(null); setOfferProducts([]); }}
+          onProductClick={p => { setSelectedOffer(null); setOfferProducts([]); setSelectedProduct(p); }}
         />
       )}
 

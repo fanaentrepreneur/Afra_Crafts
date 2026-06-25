@@ -8,6 +8,11 @@ const productSchema = new mongoose.Schema({
   imageUrl:     { type: String, default: '' },
   imageData:    { type: String, default: '' },
   subImages:    { type: [String], default: [] },
+  images: [{
+    imageData:   { type: String, default: '' },
+    price:       { type: Number, required: true, min: 0 },
+    description: { type: String, default: '' },
+  }],
   category:     { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   categoryName: { type: String, required: true },
   categorySlug: { type: String, required: true },

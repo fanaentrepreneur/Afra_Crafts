@@ -1315,16 +1315,17 @@ h1, h2, h3, h4 {
   background: var(--blush);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   overflow: hidden;
-  height: 300px;
   user-select: none;
 }
 
-.modal-carousel-track { width: 100%; height: 100%; }
+.modal-carousel-track { width: 100%; }
 
 .modal-carousel-img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 65vh;
+  object-fit: contain;
+  display: block;
   animation: carouselFade 0.25s ease;
 }
 

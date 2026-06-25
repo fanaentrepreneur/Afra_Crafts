@@ -7,14 +7,18 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   const filter = {};
   if (req.query.category) filter.category = req.query.category;
+  if (req.query.ids) filter._id = { $in: req.query.ids.split(',') };
   const products = await Product.find(filter).sort({ createdAt: -1 });
   res.json(products);
 });
 
 router.post('/', async (req, res) => {
-  const { name, price, description, imageKey, imageUrl, imageData, subImages, categoryId } = req.body;
-  if (!name || !price || !categoryId) {
-    return res.status(400).json({ error: 'Name, price, and category are required' });
+  const { name, images, imageKey, imageUrl, categoryId } = req.body;
+  if (!name || !categoryId) {
+    return res.status(400).json({ error: 'Name and category are required' });
+  }
+  if (!Array.isArray(images) || images.length === 0 || !images[0]?.imageData || images[0]?.price === undefined) {
+    return res.status(400).json({ error: 'At least one image with price is required' });
   }
 
   const category = await Category.findById(categoryId);
@@ -25,15 +29,16 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Limit reached: maximum 15 products per category.' });
   }
 
-  const filteredSubs = Array.isArray(subImages) ? subImages.filter(Boolean) : [];
+  const validImages = images.filter(img => img?.imageData && img?.price !== undefined);
   const product = await Product.create({
     name,
-    price,
-    description: description || '',
-    imageKey:   imageKey   || '',
-    imageUrl:   imageUrl   || '',
-    imageData:  filteredSubs[0] || imageData || '',
-    subImages:  filteredSubs,
+    price:       validImages[0].price,
+    description: validImages[0].description || '',
+    imageKey:    imageKey || '',
+    imageUrl:    imageUrl || '',
+    imageData:   validImages[0].imageData,
+    subImages:   validImages.map(img => img.imageData),
+    images:      validImages,
     category:     category._id,
     categoryName: category.name,
     categorySlug: category.slug,
@@ -42,19 +47,20 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, price, description, imageKey, imageUrl, imageData, subImages } = req.body;
+  const { name, imageKey, imageUrl, images } = req.body;
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found' });
 
-  if (name !== undefined)        product.name        = name;
-  if (price !== undefined)       product.price       = price;
-  if (description !== undefined) product.description = description;
-  if (imageKey !== undefined)    product.imageKey    = imageKey;
-  if (imageUrl !== undefined)    product.imageUrl    = imageUrl;
-  if (imageData)                 product.imageData   = imageData;
-  if (Array.isArray(subImages)) {
-    product.subImages = subImages.filter(Boolean);
-    if (product.subImages.length > 0) product.imageData = product.subImages[0];
+  if (name !== undefined)     product.name     = name;
+  if (imageKey !== undefined) product.imageKey = imageKey;
+  if (imageUrl !== undefined) product.imageUrl = imageUrl;
+  if (Array.isArray(images)) {
+    const valid = images.filter(img => img?.imageData);
+    product.images      = valid;
+    product.subImages   = valid.map(img => img.imageData);
+    product.imageData   = valid[0]?.imageData || '';
+    if (valid[0]?.price !== undefined) product.price = valid[0].price;
+    if (valid[0]?.description !== undefined) product.description = valid[0].description;
   }
 
   await product.save();
