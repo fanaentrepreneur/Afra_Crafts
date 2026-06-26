@@ -66,7 +66,9 @@ export default function AdminPage() {
   const createCategory = async (e) => {
     e.preventDefault();
     if (categories.length >= CAT_LIMIT) return;
-    if (!newCategory.imageFile) { toast('Category image is required.', 'error'); return; }
+    if (!newCategory.name?.trim())        { toast('Category name is required.', 'error'); return; }
+    if (!newCategory.description?.trim()) { toast('Description is required.', 'error'); return; }
+    if (!newCategory.imageFile)           { toast('Category image is required.', 'error'); return; }
     setCatCreating(true);
     try {
       const payload = { name: newCategory.name, description: newCategory.description };
@@ -86,6 +88,10 @@ export default function AdminPage() {
   const updateCategory = async (id) => {
     const upd = categoryEdit[id];
     if (!upd) return;
+    if (!upd.name?.trim())        { toast('Category name is required.', 'error'); return; }
+    if (!upd.description?.trim()) { toast('Description is required.', 'error'); return; }
+    const hasImage = (upd.existingImageData && !upd.imageRemoved) || upd.imageFile;
+    if (!hasImage)                { toast('Category image is required.', 'error'); return; }
     setSavingId(id);
     try {
       const payload = { name: upd.name, description: upd.description };
@@ -119,10 +125,16 @@ export default function AdminPage() {
   const createProduct = async (e) => {
     e.preventDefault();
     if (!newProduct.categoryId) { toast('Please select a category.', 'error'); return; }
-    if (!newProduct.images[0].imageFile) { toast('Image 1 is required.', 'error'); return; }
+    if (!newProduct.images[0].imageFile) { toast('Image 1: Photo is required.', 'error'); return; }
+    if (!newProduct.images[0].price) { toast('Image 1: Price is required.', 'error'); return; }
     for (let i = 1; i < 3; i++) {
       const img = newProduct.images[i];
-      if (img.imageFile && !img.price) { toast(`Please add a price for Image ${i + 1}.`, 'error'); return; }
+      const hasFile = !!img.imageFile;
+      const hasPrice = !!img.price;
+      if (hasFile || hasPrice) {
+        if (!hasFile)  { toast(`Image ${i + 1}: Photo is required.`, 'error'); return; }
+        if (!hasPrice) { toast(`Image ${i + 1}: Price is required.`, 'error'); return; }
+      }
     }
     setProdCreating(true);
     try {
@@ -159,23 +171,32 @@ export default function AdminPage() {
   const updateProduct = async (id) => {
     const upd = productEdit[id];
     if (!upd) return;
+    const slots = upd.imageSlots || [];
+    if (!slots[0]?.existingImg && !slots[0]?.newFile) { toast('Image 1: Photo is required.', 'error'); return; }
+    if (!slots[0]?.price) { toast('Image 1: Price is required.', 'error'); return; }
+    for (let i = 1; i <= 2; i++) {
+      const s = slots[i] || {};
+      const hasImg = !!(s.existingImg || s.newFile);
+      const hasPrice = !!s.price;
+      if (s.existingImg) {
+        if (!hasPrice) { toast(`Image ${i + 1}: Price is required.`, 'error'); return; }
+      } else if (hasImg || hasPrice) {
+        if (!hasImg)   { toast(`Image ${i + 1}: Photo is required.`, 'error'); return; }
+        if (!hasPrice) { toast(`Image ${i + 1}: Price is required.`, 'error'); return; }
+      }
+    }
     setSavingId(id);
     try {
-      const newConverted = await Promise.all(
-        (upd.newImages || []).map(async img => {
-          if (!img?.imageFile) return null;
-          const imageData = await fileToBase64(img.imageFile);
-          return { imageData, price: parseFloat(img.price) || 0, description: img.description || '' };
-        })
-      );
-      const newFiltered = newConverted.filter(Boolean);
-      const combined = [...(upd.existingImages || []), ...newFiltered].slice(0, 3);
-
-      await api.put(`/products/${id}`, {
-        name: upd.name,
-        imageKey: upd.imageKey,
-        images: combined,
-      });
+      const combined = [];
+      for (const slot of slots) {
+        if (slot.newFile) {
+          const imageData = await fileToBase64(slot.newFile);
+          combined.push({ imageData, price: parseFloat(slot.price) || 0, description: slot.description || '' });
+        } else if (slot.existingImg) {
+          combined.push({ imageData: slot.existingImg.imageData, price: parseFloat(slot.price) || 0, description: slot.description || '' });
+        }
+      }
+      await api.put(`/products/${id}`, { name: upd.name, imageKey: upd.imageKey, images: combined });
       toast('Product updated!', 'success');
       setProductEdit(p => ({ ...p, [id]: undefined }));
       setExpandedProd(null);
@@ -184,21 +205,6 @@ export default function AdminPage() {
       toast(err.response?.data?.error || 'Unable to update.', 'error');
     } finally {
       setSavingId(null);
-    }
-  };
-
-  const deleteProductImage = async (productId, imgIndex) => {
-    const upd = productEdit[productId];
-    if (!upd) return;
-    const updated = upd.existingImages.filter((_, i) => i !== imgIndex);
-    setProductEdit(p => ({ ...p, [productId]: { ...upd, existingImages: updated } }));
-    try {
-      await api.put(`/products/${productId}`, { images: updated });
-      toast('Image removed.', 'success');
-      await loadData();
-    } catch {
-      setProductEdit(p => ({ ...p, [productId]: upd }));
-      toast('Could not remove image.', 'error');
     }
   };
 
@@ -266,26 +272,18 @@ export default function AdminPage() {
     if (expandedProd === id) { setExpandedProd(null); return; }
     setExpandedProd(id);
     if (!productEdit[id]) {
-      const existingImages = prod.images?.length > 0
+      const sourceImages = prod.images?.length > 0
         ? prod.images.map(img => ({ imageData: img.imageData, price: img.price, description: img.description }))
         : (prod.subImages || []).map((imgData, i) => ({
             imageData: imgData,
             price: i === 0 ? prod.price : '',
             description: i === 0 ? prod.description : '',
           }));
-      setProductEdit(p => ({
-        ...p,
-        [id]: {
-          name: prod.name,
-          imageKey: prod.imageKey || '',
-          existingImages,
-          newImages: [
-            { imageFile: null, price: '', description: '' },
-            { imageFile: null, price: '', description: '' },
-            { imageFile: null, price: '', description: '' },
-          ],
-        },
-      }));
+      const imageSlots = Array.from({ length: 3 }, (_, idx) => {
+        const img = sourceImages[idx] || null;
+        return { existingImg: img, newFile: null, clearKey: 0, price: img ? String(img.price ?? '') : '', description: img?.description || '' };
+      });
+      setProductEdit(p => ({ ...p, [id]: { name: prod.name, imageKey: prod.imageKey || '', imageSlots } }));
     }
   };
 
@@ -496,19 +494,25 @@ export default function AdminPage() {
                           onChange={e => setCategoryEdit({ ...categoryEdit, [cat._id]: { ...es, description: e.target.value } })} />
                       </div>
                       <div className="form-field">
-                        <label className="form-label">
-                          Image
-                          <span className="form-label-hint"> (leave empty to keep current)</span>
-                        </label>
-                        {es.existingImageData && !es.imageFile && (
+                        <label className="form-label">Image</label>
+                        {es.existingImageData && !es.imageRemoved ? (
                           <div className="existing-images-row" style={{ marginBottom: '0.5rem' }}>
-                            <div className="existing-image-thumb">
-                              <img src={es.existingImageData} alt="Current" />
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <div className="existing-image-thumb">
+                                <img src={es.existingImageData} alt="Current" />
+                              </div>
+                              <button className="img-delete-btn" title="Remove"
+                                onClick={() => setCategoryEdit({ ...categoryEdit, [cat._id]: { ...es, imageRemoved: true } })}>×</button>
                             </div>
                           </div>
+                        ) : (
+                          <input
+                            key={es.imgClearKey || 0}
+                            className="form-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={e => setCategoryEdit({ ...categoryEdit, [cat._id]: { ...es, imageFile: e.target.files?.[0] || null } })} />
                         )}
-                        <input className="form-input" type="file" accept="image/*"
-                          onChange={e => setCategoryEdit({ ...categoryEdit, [cat._id]: { ...es, imageFile: e.target.files?.[0] || null } })} />
                       </div>
                       <div className="form-actions">
                         <button className="btn-primary btn-sm" disabled={savingId === cat._id} onClick={() => updateCategory(cat._id)}>
@@ -538,12 +542,13 @@ export default function AdminPage() {
             {products.map(prod => {
               const isOpen = expandedProd === prod._id;
               const es = productEdit[prod._id] || {
-                name: prod.name, price: prod.price, description: prod.description,
+                name: prod.name,
                 imageKey: prod.imageKey || '',
-                existingImages: [...(prod.subImages || [])],
-                newImageFiles: [null, null, null],
+                imageSlots: Array.from({ length: 3 }, (_, idx) => {
+                  const img = (prod.subImages || [])[idx];
+                  return { existingImg: img ? { imageData: img, price: '', description: '' } : null, newFile: null, clearKey: 0, price: '', description: '' };
+                }),
               };
-              const slotsAvailable = Math.max(0, 3 - (es.existingImages || []).length);
               return (
                 <div key={prod._id} className="admin-item">
                   <div className="admin-item-head">
@@ -569,94 +574,77 @@ export default function AdminPage() {
                           onChange={e => setProductEdit({ ...productEdit, [prod._id]: { ...es, name: e.target.value } })} />
                       </div>
 
-                      {/* Existing images with per-image price & description */}
-                      {(es.existingImages || []).length > 0 && (
-                        <div className="form-field">
-                          <label className="form-label">
-                            Current images
-                            <span className="form-label-hint"> (click × to remove)</span>
-                          </label>
-                          {(es.existingImages || []).map((img, imgIdx) => (
-                            <div key={imgIdx} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem', marginBottom: '0.6rem' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>Image {imgIdx + 1}{imgIdx === 0 ? ' ★' : ''}</span>
-                                <button className="img-delete-btn" onClick={() => deleteProductImage(prod._id, imgIdx)} title="Remove">×</button>
-                              </div>
+                      {/* Image slots – always 3 visible; × removes existing, shows Choose File in place */}
+                      <div className="form-field">
+                        <label className="form-label">
+                          Images <span className="form-label-hint">(★ = primary, required)</span>
+                        </label>
+                        {(es.imageSlots || []).map((slot, idx) => (
+                          <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem', marginBottom: '0.6rem' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '0.5rem' }}>
+                              Image {idx + 1}{idx === 0 ? ' ★' : ''}
+                            </div>
+                            {slot.existingImg ? (
                               <div className="existing-images-row" style={{ marginBottom: '0.5rem' }}>
-                                <div className="existing-image-thumb">
-                                  <img src={img.imageData} alt={`Image ${imgIdx + 1}`} />
+                                <div style={{ position: 'relative', display: 'inline-block' }}>
+                                  <div className="existing-image-thumb">
+                                    <img src={slot.existingImg.imageData} alt={`Image ${idx + 1}`} />
+                                  </div>
+                                  <button className="img-delete-btn" title="Remove" onClick={() => {
+                                    const slots = [...es.imageSlots];
+                                    slots[idx] = { ...slots[idx], existingImg: null };
+                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, imageSlots: slots } });
+                                  }}>×</button>
                                 </div>
                               </div>
-                              <div className="form-field">
-                                <label className="form-label">Price (₹)</label>
-                                <input className="form-input" type="number" min="0" step="0.1"
-                                  value={img.price || ''}
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <input
+                                  key={slot.clearKey || 0}
+                                  className="form-input"
+                                  type="file"
+                                  accept="image/*"
+                                  style={{ flex: 1 }}
                                   onChange={e => {
-                                    const updated = es.existingImages.map((im, j) => j === imgIdx ? { ...im, price: e.target.value } : im);
-                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, existingImages: updated } });
+                                    const slots = [...es.imageSlots];
+                                    slots[idx] = { ...slots[idx], newFile: e.target.files?.[0] || null };
+                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, imageSlots: slots } });
                                   }} />
+                                {slot.newFile && (
+                                  <button className="img-delete-btn" style={{ position: 'static', flexShrink: 0 }} title="Clear"
+                                    onClick={() => {
+                                      const slots = [...es.imageSlots];
+                                      slots[idx] = { ...slots[idx], newFile: null, clearKey: (slots[idx].clearKey || 0) + 1 };
+                                      setProductEdit({ ...productEdit, [prod._id]: { ...es, imageSlots: slots } });
+                                    }}>×</button>
+                                )}
                               </div>
-                              <div className="form-field" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Description</label>
-                                <textarea className="form-textarea" style={{ minHeight: '60px' }}
-                                  value={img.description || ''}
-                                  onChange={e => {
-                                    const updated = es.existingImages.map((im, j) => j === imgIdx ? { ...im, description: e.target.value } : im);
-                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, existingImages: updated } });
-                                  }} />
-                              </div>
+                            )}
+                            <div className="form-field">
+                              <label className="form-label">Price (₹)</label>
+                              <input className="form-input" type="number" min="0" step="0.1"
+                                value={slot.price || ''}
+                                placeholder="0"
+                                onChange={e => {
+                                  const slots = [...es.imageSlots];
+                                  slots[idx] = { ...slots[idx], price: e.target.value };
+                                  setProductEdit({ ...productEdit, [prod._id]: { ...es, imageSlots: slots } });
+                                }} />
                             </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* New image slots */}
-                      {slotsAvailable > 0 && (
-                        <div className="form-field">
-                          <label className="form-label">
-                            Add images
-                            <span className="form-label-hint"> ({slotsAvailable} slot{slotsAvailable !== 1 ? 's' : ''} available)</span>
-                          </label>
-                          {Array.from({ length: slotsAvailable }).map((_, i) => (
-                            <div key={i} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem', marginBottom: '0.6rem' }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '0.5rem' }}>
-                                Image {(es.existingImages || []).length + i + 1}
-                              </div>
-                              <div className="form-field">
-                                <label className="form-label">Photo</label>
-                                <input className="form-input" type="file" accept="image/*"
-                                  onChange={e => {
-                                    const imgs = [...(es.newImages || [{},{},{}])];
-                                    imgs[i] = { ...(imgs[i] || {}), imageFile: e.target.files?.[0] || null };
-                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, newImages: imgs } });
-                                  }} />
-                              </div>
-                              <div className="form-field">
-                                <label className="form-label">Price (₹)</label>
-                                <input className="form-input" type="number" min="0" step="0.1"
-                                  value={es.newImages?.[i]?.price || ''}
-                                  placeholder="0"
-                                  onChange={e => {
-                                    const imgs = [...(es.newImages || [{},{},{}])];
-                                    imgs[i] = { ...(imgs[i] || {}), price: e.target.value };
-                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, newImages: imgs } });
-                                  }} />
-                              </div>
-                              <div className="form-field" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Description</label>
-                                <textarea className="form-textarea" style={{ minHeight: '60px' }}
-                                  value={es.newImages?.[i]?.description || ''}
-                                  placeholder="Description for this variant"
-                                  onChange={e => {
-                                    const imgs = [...(es.newImages || [{},{},{}])];
-                                    imgs[i] = { ...(imgs[i] || {}), description: e.target.value };
-                                    setProductEdit({ ...productEdit, [prod._id]: { ...es, newImages: imgs } });
-                                  }} />
-                              </div>
+                            <div className="form-field" style={{ marginBottom: 0 }}>
+                              <label className="form-label">Description</label>
+                              <textarea className="form-textarea" style={{ minHeight: '60px' }}
+                                value={slot.description || ''}
+                                placeholder="Description for this variant"
+                                onChange={e => {
+                                  const slots = [...es.imageSlots];
+                                  slots[idx] = { ...slots[idx], description: e.target.value };
+                                  setProductEdit({ ...productEdit, [prod._id]: { ...es, imageSlots: slots } });
+                                }} />
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          </div>
+                        ))}
+                      </div>
 
                       <div className="form-actions">
                         <button className="btn-primary btn-sm" disabled={savingId === prod._id} onClick={() => updateProduct(prod._id)}>

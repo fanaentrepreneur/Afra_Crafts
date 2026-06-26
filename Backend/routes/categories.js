@@ -39,8 +39,9 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, description, imageUrl, imageData } = req.body;
-  const slug = name?.toLowerCase().replace(/\s+/g, '-');
-  const fields = { name, description, slug };
+  if (!name?.trim()) return res.status(400).json({ error: 'Category name is required' });
+  const slug = name.trim().toLowerCase().replace(/\s+/g, '-');
+  const fields = { name: name.trim(), description, slug };
   if (imageUrl !== undefined) fields.imageUrl = imageUrl || '';
   if (imageData !== undefined) fields.imageData = imageData || '';
   const updated = await Category.findByIdAndUpdate(id, fields, { new: true, runValidators: true });
