@@ -1990,6 +1990,66 @@ h1, h2, h3, h4 {
   transform: scale(1.15);
 }
 
+/* ── Confirm dialog ──────────────────── */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+}
+.confirm-dialog {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+  padding: 1.8rem 2rem;
+  max-width: 360px;
+  width: 100%;
+}
+.confirm-msg {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0 0 1.4rem;
+  line-height: 1.5;
+}
+.confirm-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+.btn-danger {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger:hover { background: #a93226; }
+
+/* ── Skeleton loading ─────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-line {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+  display: block;
+}
+.skeleton-item { pointer-events: none; }
+
 @media (max-width: 600px) {
   .cat-overview-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

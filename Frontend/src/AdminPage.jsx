@@ -28,29 +28,49 @@ export default function AdminPage() {
 
   const [categoryEdit, setCategoryEdit] = useState({});
   const [productEdit,  setProductEdit]  = useState({});
+  const [offerEdit,    setOfferEdit]    = useState({});
   const [expandedCat,  setExpandedCat]  = useState(null);
   const [expandedProd, setExpandedProd] = useState(null);
+  const [expandedOffer,setExpandedOffer]= useState(null);
 
   const [catCreating,  setCatCreating]  = useState(false);
   const [prodCreating, setProdCreating] = useState(false);
   const [offerCreating, setOfferCreating] = useState(false);
   const [savingId,     setSavingId]     = useState(null);
 
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, message: '', onConfirm: null });
+
+  const askConfirm = (message, fn) => setConfirmDialog({ open: true, message, onConfirm: fn });
+  const closeConfirm = () => setConfirmDialog({ open: false, message: '', onConfirm: null });
+  const handleConfirm = () => { confirmDialog.onConfirm?.(); closeConfirm(); };
+
+  const [catsLoading,   setCatsLoading]   = useState(true);
+  const [prodsLoading,  setProdsLoading]  = useState(true);
+  const [offersLoading, setOffersLoading] = useState(true);
+  const [catSkelCount]  = useState(() => Math.min(8, Math.max(1, parseInt(localStorage.getItem('afra_cat_count')   || '3'))));
+  const [prodSkelCount] = useState(() => Math.min(12, Math.max(1, parseInt(localStorage.getItem('afra_prod_count')  || '5'))));
+  const [offerSkelCount]= useState(() => Math.min(6,  Math.max(1, parseInt(localStorage.getItem('afra_offer_count') || '2'))));
+
   useEffect(() => { loadData(); }, []);
 
-  const loadData = async () => {
-    try {
-      const [catRes, prodRes, offerRes] = await Promise.all([
-        api.get('/categories'),
-        api.get('/products'),
-        api.get('/offers/all'),
-      ]);
-      setCategories(catRes.data);
-      setProducts(prodRes.data);
-      setOffers(offerRes.data);
-    } catch {
-      toast('Unable to load data. Please refresh.', 'error');
-    }
+  const loadData = () => {
+    api.get('/categories').then(res => {
+      setCategories(res.data);
+      setCatsLoading(false);
+      localStorage.setItem('afra_cat_count', String(res.data.length));
+    }).catch(() => { setCatsLoading(false); toast('Unable to load categories.', 'error'); });
+
+    api.get('/products').then(res => {
+      setProducts(res.data);
+      setProdsLoading(false);
+      localStorage.setItem('afra_prod_count', String(res.data.length));
+    }).catch(() => { setProdsLoading(false); toast('Unable to load products.', 'error'); });
+
+    api.get('/offers/all').then(res => {
+      setOffers(res.data);
+      setOffersLoading(false);
+      localStorage.setItem('afra_offer_count', String(res.data.length));
+    }).catch(() => { setOffersLoading(false); toast('Unable to load offers.', 'error'); });
   };
 
   const categoryOptions = useMemo(
@@ -110,15 +130,16 @@ export default function AdminPage() {
     }
   };
 
-  const deleteCategory = async (id) => {
-    if (!window.confirm('Delete this category and all its products?')) return;
-    try {
-      await api.delete(`/categories/${id}`);
-      toast('Category removed.', 'success');
-      await loadData();
-    } catch (err) {
-      toast(err.response?.data?.error || 'Unable to delete.', 'error');
-    }
+  const deleteCategory = (id) => {
+    askConfirm('Delete this category and all its products?', async () => {
+      try {
+        await api.delete(`/categories/${id}`);
+        toast('Category removed.', 'success');
+        loadData();
+      } catch (err) {
+        toast(err.response?.data?.error || 'Unable to delete.', 'error');
+      }
+    });
   };
 
   /* ── Product CRUD ──────────────────────── */
@@ -208,20 +229,25 @@ export default function AdminPage() {
     }
   };
 
-  const deleteProduct = async (id) => {
-    if (!window.confirm('Delete this product?')) return;
-    try {
-      await api.delete(`/products/${id}`);
-      toast('Product removed.', 'success');
-      await loadData();
-    } catch (err) {
-      toast(err.response?.data?.error || 'Unable to delete.', 'error');
-    }
+  const deleteProduct = (id) => {
+    askConfirm('Delete this product?', async () => {
+      try {
+        await api.delete(`/products/${id}`);
+        toast('Product removed.', 'success');
+        loadData();
+      } catch (err) {
+        toast(err.response?.data?.error || 'Unable to delete.', 'error');
+      }
+    });
   };
 
   /* ── Offer CRUD ────────────────────────── */
   const createOffer = async (e) => {
     e.preventDefault();
+    if (!newOffer.name?.trim())          { toast('Offer name is required.', 'error'); return; }
+    if (!newOffer.description?.trim())   { toast('Description is required.', 'error'); return; }
+    if (!newOffer.discountLabel?.trim()) { toast('Discount label is required.', 'error'); return; }
+    if (!newOffer.imageFile)             { toast('Offer image is required.', 'error'); return; }
     setOfferCreating(true);
     try {
       const payload = {
@@ -241,15 +267,16 @@ export default function AdminPage() {
     }
   };
 
-  const deleteOffer = async (id) => {
-    if (!window.confirm('Delete this offer?')) return;
-    try {
-      await api.delete(`/offers/${id}`);
-      toast('Offer removed.', 'success');
-      await loadData();
-    } catch {
-      toast('Unable to delete.', 'error');
-    }
+  const deleteOffer = (id) => {
+    askConfirm('Delete this offer?', async () => {
+      try {
+        await api.delete(`/offers/${id}`);
+        toast('Offer removed.', 'success');
+        loadData();
+      } catch {
+        toast('Unable to delete.', 'error');
+      }
+    });
   };
 
   const toggleOfferProduct = (pid) =>
@@ -259,6 +286,30 @@ export default function AdminPage() {
         ? p.productIds.filter(id => id !== pid)
         : [...p.productIds, pid],
     }));
+
+  const updateOffer = async (id) => {
+    const upd = offerEdit[id];
+    if (!upd) return;
+    if (!upd.name?.trim())          { toast('Offer name is required.', 'error'); return; }
+    if (!upd.description?.trim())   { toast('Description is required.', 'error'); return; }
+    if (!upd.discountLabel?.trim()) { toast('Discount label is required.', 'error'); return; }
+    const hasImage = (upd.existingImageData && !upd.imageRemoved) || upd.imageFile;
+    if (!hasImage)                  { toast('Offer image is required.', 'error'); return; }
+    setSavingId(id);
+    try {
+      const payload = { name: upd.name, description: upd.description, discountLabel: upd.discountLabel, productIds: upd.productIds };
+      if (upd.imageFile) payload.imageData = await fileToBase64(upd.imageFile);
+      await api.put(`/offers/${id}`, payload);
+      toast('Offer updated!', 'success');
+      setOfferEdit(p => ({ ...p, [id]: undefined }));
+      setExpandedOffer(null);
+      loadData();
+    } catch (err) {
+      toast(err.response?.data?.error || 'Unable to update.', 'error');
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   /* ── Expand helpers ────────────────────── */
   const toggleCatExpand = (id, cat) => {
@@ -287,6 +338,18 @@ export default function AdminPage() {
     }
   };
 
+  const toggleOfferExpand = (id, offer) => {
+    if (expandedOffer === id) { setExpandedOffer(null); return; }
+    setExpandedOffer(id);
+    if (!offerEdit[id])
+      setOfferEdit(p => ({ ...p, [id]: {
+        name: offer.name, description: offer.description || '',
+        discountLabel: offer.discountLabel || '',
+        existingImageData: offer.imageData || '', imageFile: null, imageRemoved: false,
+        productIds: [...(offer.productIds || [])],
+      }}));
+  };
+
   const atCatLimit = categories.length >= CAT_LIMIT;
 
   return (
@@ -302,16 +365,20 @@ export default function AdminPage() {
             <div className="stats-row" style={{ marginTop: '1.2rem', marginBottom: 0 }}>
               <div className="stat-chip">
                 <span className="stat-chip-num">
-                  {categories.length}<span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--muted)' }}></span>
+                  {catsLoading ? <span className="skeleton-line" style={{ display:'inline-block', width:'1.4rem', height:'1.1rem', verticalAlign:'middle' }} /> : categories.length}
                 </span>
                 <span className="stat-chip-label">Categories</span>
               </div>
               <div className="stat-chip">
-                <span className="stat-chip-num">{products.length}</span>
+                <span className="stat-chip-num">
+                  {prodsLoading ? <span className="skeleton-line" style={{ display:'inline-block', width:'1.8rem', height:'1.1rem', verticalAlign:'middle' }} /> : products.length}
+                </span>
                 <span className="stat-chip-label">Products</span>
               </div>
               <div className="stat-chip">
-                <span className="stat-chip-num">{offers.length}</span>
+                <span className="stat-chip-num">
+                  {offersLoading ? <span className="skeleton-line" style={{ display:'inline-block', width:'1.4rem', height:'1.1rem', verticalAlign:'middle' }} /> : offers.length}
+                </span>
                 <span className="stat-chip-label">Offers</span>
               </div>
             </div>
@@ -456,10 +523,28 @@ export default function AdminPage() {
         <div className="section-header">
           <h2 className="section-title">Categories</h2>
           <p className="section-sub">
-            {categories.length === 0 ? 'No categories yet.' : `${categories.length} collection${categories.length !== 1 ? 's' : ''}`}
+            {catsLoading ? 'Loading…' : categories.length === 0 ? 'No categories yet.' : `${categories.length} collection${categories.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        {categories.length > 0 && (
+        {catsLoading && (
+          <div className="admin-list">
+            {Array.from({ length: catSkelCount }).map((_, i) => (
+              <div key={i} className="admin-item skeleton-item">
+                <div className="admin-item-head">
+                  <div className="admin-item-info">
+                    <div className="skeleton-line" style={{ width: '42%', height: '1rem', marginBottom: '0.4rem' }} />
+                    <div className="skeleton-line" style={{ width: '28%', height: '0.72rem' }} />
+                  </div>
+                  <div className="admin-item-btns" style={{ gap: '0.4rem' }}>
+                    <div className="skeleton-line" style={{ width: '2rem', height: '2rem', borderRadius: '50%' }} />
+                    <div className="skeleton-line" style={{ width: '2rem', height: '2rem', borderRadius: '50%' }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!catsLoading && categories.length > 0 && (
           <div className="admin-list">
             {categories.map(cat => {
               const isOpen = expandedCat === cat._id;
@@ -534,10 +619,28 @@ export default function AdminPage() {
         <div className="section-header">
           <h2 className="section-title">Products</h2>
           <p className="section-sub">
-            {products.length === 0 ? 'No products yet.' : `${products.length} product${products.length !== 1 ? 's' : ''}`}
+            {prodsLoading ? 'Loading…' : products.length === 0 ? 'No products yet.' : `${products.length} product${products.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        {products.length > 0 && (
+        {prodsLoading && (
+          <div className="admin-list">
+            {Array.from({ length: prodSkelCount }).map((_, i) => (
+              <div key={i} className="admin-item skeleton-item">
+                <div className="admin-item-head">
+                  <div className="admin-item-info">
+                    <div className="skeleton-line" style={{ width: '50%', height: '1rem', marginBottom: '0.4rem' }} />
+                    <div className="skeleton-line" style={{ width: '35%', height: '0.72rem' }} />
+                  </div>
+                  <div className="admin-item-btns" style={{ gap: '0.4rem' }}>
+                    <div className="skeleton-line" style={{ width: '2rem', height: '2rem', borderRadius: '50%' }} />
+                    <div className="skeleton-line" style={{ width: '2rem', height: '2rem', borderRadius: '50%' }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!prodsLoading && products.length > 0 && (
           <div className="admin-list">
             {products.map(prod => {
               const isOpen = expandedProd === prod._id;
@@ -728,27 +831,135 @@ export default function AdminPage() {
             </div>
           </form>
         </div>
-        {offers.length > 0 && (
+        {offersLoading && (
           <div className="admin-list">
-            {offers.map(offer => (
-              <div key={offer._id} className="admin-item">
+            {Array.from({ length: offerSkelCount }).map((_, i) => (
+              <div key={i} className="admin-item skeleton-item">
                 <div className="admin-item-head">
                   <div className="admin-item-info">
-                    <div className="admin-item-name">{offer.name}</div>
-                    <div className="admin-item-meta">
-                      {offer.discountLabel ? `${offer.discountLabel} · ` : ''}
-                      {offer.productIds?.length || 0} product{offer.productIds?.length !== 1 ? 's' : ''}
-                    </div>
+                    <div className="skeleton-line" style={{ width: '38%', height: '1rem', marginBottom: '0.4rem' }} />
+                    <div className="skeleton-line" style={{ width: '25%', height: '0.72rem' }} />
                   </div>
-                  <div className="admin-item-btns">
-                    <button className="btn-icon btn-icon-delete" title="Delete" onClick={() => deleteOffer(offer._id)}>🗑</button>
+                  <div className="admin-item-btns" style={{ gap: '0.4rem' }}>
+                    <div className="skeleton-line" style={{ width: '2rem', height: '2rem', borderRadius: '50%' }} />
+                    <div className="skeleton-line" style={{ width: '2rem', height: '2rem', borderRadius: '50%' }} />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         )}
+        {!offersLoading && offers.length > 0 && (
+          <div className="admin-list">
+            {offers.map(offer => {
+              const isOpen = expandedOffer === offer._id;
+              const eo = offerEdit[offer._id] || { name: offer.name, description: offer.description || '', discountLabel: offer.discountLabel || '', existingImageData: offer.imageData || '', imageFile: null, imageRemoved: false, productIds: [...(offer.productIds || [])] };
+              return (
+                <div key={offer._id} className="admin-item">
+                  <div className="admin-item-head">
+                    <div className="admin-item-info">
+                      <div className="admin-item-name">{offer.name}</div>
+                      <div className="admin-item-meta">
+                        {offer.discountLabel ? `${offer.discountLabel} · ` : ''}
+                        {offer.productIds?.length || 0} product{offer.productIds?.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    <div className="admin-item-btns">
+                      <button className="btn-icon btn-icon-edit" title={isOpen ? 'Close' : 'Edit'} onClick={() => toggleOfferExpand(offer._id, offer)}>
+                        {isOpen ? '✕' : '✏'}
+                      </button>
+                      <button className="btn-icon btn-icon-delete" title="Delete" onClick={() => deleteOffer(offer._id)}>🗑</button>
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div className="admin-item-form">
+                      <div className="form-row">
+                        <div className="form-field">
+                          <label className="form-label">Offer name</label>
+                          <input className="form-input" value={eo.name}
+                            onChange={e => setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, name: e.target.value } })} />
+                        </div>
+                        <div className="form-field">
+                          <label className="form-label">Discount label</label>
+                          <input className="form-input" value={eo.discountLabel}
+                            onChange={e => setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, discountLabel: e.target.value } })}
+                            placeholder="e.g. 20% OFF" />
+                        </div>
+                      </div>
+                      <div className="form-field">
+                        <label className="form-label">Description</label>
+                        <textarea className="form-textarea" style={{ minHeight: '70px' }} value={eo.description}
+                          onChange={e => setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, description: e.target.value } })} />
+                      </div>
+                      <div className="form-field">
+                        <label className="form-label">Image</label>
+                        {eo.existingImageData && !eo.imageRemoved ? (
+                          <div className="existing-images-row" style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <div className="existing-image-thumb">
+                                <img src={eo.existingImageData} alt="Offer" />
+                              </div>
+                              <button className="img-delete-btn" title="Remove"
+                                onClick={() => setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, imageRemoved: true } })}>×</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <input className="form-input" type="file" accept="image/*"
+                            onChange={e => setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, imageFile: e.target.files?.[0] || null } })} />
+                        )}
+                      </div>
+                      <div className="form-field">
+                        <label className="form-label">
+                          Link products
+                          <span className="form-label-hint"> (products shown when offer is clicked)</span>
+                        </label>
+                        {products.length === 0 ? (
+                          <p style={{ color: 'var(--muted)', fontSize: '0.87rem' }}>No products available.</p>
+                        ) : (
+                          <div className="offer-product-check-grid">
+                            {products.map(p => (
+                              <label key={p._id} className="offer-check-item">
+                                <input type="checkbox"
+                                  checked={eo.productIds.includes(p._id)}
+                                  onChange={() => {
+                                    const ids = eo.productIds.includes(p._id)
+                                      ? eo.productIds.filter(id => id !== p._id)
+                                      : [...eo.productIds, p._id];
+                                    setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, productIds: ids } });
+                                  }} />
+                                <span>{p.name} <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>₹{Number(p.price).toFixed(0)}</span></span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="form-actions">
+                        <button className="btn-primary btn-sm" disabled={savingId === offer._id} onClick={() => updateOffer(offer._id)}>
+                          {savingId === offer._id ? 'Saving…' : 'Save changes'}
+                        </button>
+                        <button className="btn-ghost btn-sm" onClick={() => setExpandedOffer(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* ── Confirm Dialog ────────────────────── */}
+      {confirmDialog.open && (
+        <div className="confirm-overlay" onClick={closeConfirm}>
+          <div className="confirm-dialog" onClick={e => e.stopPropagation()}>
+            <p className="confirm-msg">{confirmDialog.message}</p>
+            <div className="confirm-btns">
+              <button className="btn-ghost btn-sm" onClick={closeConfirm}>Cancel</button>
+              <button className="btn-danger btn-sm" onClick={handleConfirm}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
