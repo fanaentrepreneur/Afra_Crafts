@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import api from './utils/api.js';
 import { getImageOptions } from './data/imageAssets.js';
 import { fileToBase64 } from './utils/imageUpload.js';
 import { useToast } from './context/ToastContext.jsx';
 
-const CAT_LIMIT = 5;
+const CAT_LIMIT   = 5;
+const OFFER_LIMIT = 3;
+const PAGE_SIZE   = 5;
 
 export default function AdminPage() {
   const toast = useToast();
@@ -38,6 +40,15 @@ export default function AdminPage() {
   const [offerCreating, setOfferCreating] = useState(false);
   const [savingId,     setSavingId]     = useState(null);
 
+  const [prodPage,        setProdPage]        = useState(1);
+  const [prodTotal,       setProdTotal]       = useState(null);
+  const [prodHasMore,     setProdHasMore]     = useState(false);
+  const [prodLoadingMore, setProdLoadingMore] = useState(false);
+  const [offerProductList, setOfferProductList] = useState([]);
+  const loadMoreFnRef   = useRef(null);
+  const prodListRef     = useRef(null);
+  const dataLoadedRef   = useRef(false);
+
   const [confirmDialog, setConfirmDialog] = useState({ open: false, message: '', onConfirm: null });
 
   const askConfirm = (message, fn) => setConfirmDialog({ open: true, message, onConfirm: fn });
@@ -48,10 +59,54 @@ export default function AdminPage() {
   const [prodsLoading,  setProdsLoading]  = useState(true);
   const [offersLoading, setOffersLoading] = useState(true);
   const [catSkelCount]  = useState(() => Math.min(8, Math.max(1, parseInt(localStorage.getItem('afra_cat_count')   || '3'))));
-  const [prodSkelCount] = useState(() => Math.min(12, Math.max(1, parseInt(localStorage.getItem('afra_prod_count')  || '5'))));
+  const [prodSkelCount] = useState(() => Math.min(5,  Math.max(1, parseInt(localStorage.getItem('afra_prod_count')  || '3'))));
   const [offerSkelCount]= useState(() => Math.min(6,  Math.max(1, parseInt(localStorage.getItem('afra_offer_count') || '2'))));
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (dataLoadedRef.current) return;
+    dataLoadedRef.current = true;
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    loadMoreFnRef.current = () => {
+      if (!prodHasMore || prodLoadingMore || prodsLoading) return;
+      loadProducts(prodPage + 1, true);
+    };
+  });
+
+  useEffect(() => {
+    const container = prodListRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      if (scrollHeight - scrollTop - clientHeight < 80) {
+        loadMoreFnRef.current?.();
+      }
+    };
+    container.addEventListener('scroll', onScroll);
+    return () => container.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const loadProducts = (page = 1, append = false) => {
+    if (!append) setProdsLoading(true);
+    else setProdLoadingMore(true);
+    return api.get(`/products?page=${page}&pageSize=${PAGE_SIZE}`)
+      .then(res => {
+        const { products: newProds, total, hasMore } = res.data;
+        if (append) setProducts(prev => [...prev, ...newProds]);
+        else setProducts(newProds);
+        setProdPage(page);
+        setProdTotal(total);
+        setProdHasMore(hasMore);
+        localStorage.setItem('afra_prod_count', String(total));
+      })
+      .catch(() => { toast('Unable to load products.', 'error'); })
+      .finally(() => {
+        if (!append) setProdsLoading(false);
+        else setProdLoadingMore(false);
+      });
+  };
 
   const loadData = () => {
     api.get('/categories').then(res => {
@@ -60,11 +115,11 @@ export default function AdminPage() {
       localStorage.setItem('afra_cat_count', String(res.data.length));
     }).catch(() => { setCatsLoading(false); toast('Unable to load categories.', 'error'); });
 
-    api.get('/products').then(res => {
-      setProducts(res.data);
-      setProdsLoading(false);
-      localStorage.setItem('afra_prod_count', String(res.data.length));
-    }).catch(() => { setProdsLoading(false); toast('Unable to load products.', 'error'); });
+    loadProducts(1);
+
+    api.get('/products?slim=true').then(res => {
+      setOfferProductList(res.data);
+    }).catch(() => {});
 
     api.get('/offers/all').then(res => {
       setOffers(res.data);
@@ -181,7 +236,8 @@ export default function AdminPage() {
       });
       e.target.reset();
       toast('Product added!', 'success');
-      await loadData();
+      await loadProducts(1);
+      api.get('/products?slim=true').then(res => setOfferProductList(res.data)).catch(() => {});
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to add product.', 'error');
     } finally {
@@ -221,7 +277,8 @@ export default function AdminPage() {
       toast('Product updated!', 'success');
       setProductEdit(p => ({ ...p, [id]: undefined }));
       setExpandedProd(null);
-      await loadData();
+      await loadProducts(1);
+      api.get('/products?slim=true').then(res => setOfferProductList(res.data)).catch(() => {});
     } catch (err) {
       toast(err.response?.data?.error || 'Unable to update.', 'error');
     } finally {
@@ -234,7 +291,8 @@ export default function AdminPage() {
       try {
         await api.delete(`/products/${id}`);
         toast('Product removed.', 'success');
-        loadData();
+        loadProducts(1);
+        api.get('/products?slim=true').then(res => setOfferProductList(res.data)).catch(() => {});
       } catch (err) {
         toast(err.response?.data?.error || 'Unable to delete.', 'error');
       }
@@ -244,6 +302,7 @@ export default function AdminPage() {
   /* ── Offer CRUD ────────────────────────── */
   const createOffer = async (e) => {
     e.preventDefault();
+    if (offers.length >= OFFER_LIMIT)    { toast(`Maximum ${OFFER_LIMIT} offers allowed.`, 'error'); return; }
     if (!newOffer.name?.trim())          { toast('Offer name is required.', 'error'); return; }
     if (!newOffer.description?.trim())   { toast('Description is required.', 'error'); return; }
     if (!newOffer.discountLabel?.trim()) { toast('Discount label is required.', 'error'); return; }
@@ -350,7 +409,8 @@ export default function AdminPage() {
       }}));
   };
 
-  const atCatLimit = categories.length >= CAT_LIMIT;
+  const atCatLimit   = categories.length >= CAT_LIMIT;
+  const atOfferLimit = offers.length >= OFFER_LIMIT;
 
   return (
     <div className="admin-page">
@@ -371,7 +431,7 @@ export default function AdminPage() {
               </div>
               <div className="stat-chip">
                 <span className="stat-chip-num">
-                  {prodsLoading ? <span className="skeleton-line" style={{ display:'inline-block', width:'1.8rem', height:'1.1rem', verticalAlign:'middle' }} /> : products.length}
+                  {prodsLoading ? <span className="skeleton-line" style={{ display:'inline-block', width:'1.8rem', height:'1.1rem', verticalAlign:'middle' }} /> : (prodTotal !== null ? prodTotal : products.length)}
                 </span>
                 <span className="stat-chip-label">Products</span>
               </div>
@@ -619,9 +679,10 @@ export default function AdminPage() {
         <div className="section-header">
           <h2 className="section-title">Products</h2>
           <p className="section-sub">
-            {prodsLoading ? 'Loading…' : products.length === 0 ? 'No products yet.' : `${products.length} product${products.length !== 1 ? 's' : ''}`}
+            {prodsLoading ? 'Loading…' : prodTotal === 0 ? 'No products yet.' : prodTotal !== null ? `${prodTotal} product${prodTotal !== 1 ? 's' : ''}` : 'No products yet.'}
           </p>
         </div>
+        <div ref={prodListRef} style={{ maxHeight: '320px', overflowY: 'auto' }}>
         {prodsLoading && (
           <div className="admin-list">
             {Array.from({ length: prodSkelCount }).map((_, i) => (
@@ -762,6 +823,17 @@ export default function AdminPage() {
             })}
           </div>
         )}
+        {prodLoadingMore && (
+          <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--muted)', fontSize: '0.87rem' }}>
+            Loading more…
+          </div>
+        )}
+        </div>
+        {!prodsLoading && !prodHasMore && prodTotal !== null && products.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '0.6rem 0 0.2rem', color: 'var(--muted)', fontSize: '0.78rem' }}>
+            All {prodTotal} product{prodTotal !== 1 ? 's' : ''} shown
+          </div>
+        )}
       </div>
 
       {/* ── Offers Section ────────────────────── */}
@@ -775,10 +847,22 @@ export default function AdminPage() {
             <div className="admin-form-card-icon" style={{ background: 'var(--grad-gold)' }}>🏷</div>
             <div>
               <div className="admin-form-card-title">Create Offer</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.15rem' }}>Add a deal with image and linked products</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.15rem' }}>
+                {atOfferLimit ? `${OFFER_LIMIT}/${OFFER_LIMIT} — limit reached` : `${offers.length}/${OFFER_LIMIT} used · Add a deal with image and linked products`}
+              </div>
             </div>
           </div>
-          <form className="admin-form-card-body" onSubmit={createOffer}>
+          {atOfferLimit ? (
+            <div className="admin-form-card-body">
+              <div className="premium-block">
+                <div className="premium-block-icon">🏷</div>
+                <div className="premium-block-title">Offer limit reached</div>
+                <p className="premium-block-sub">You've used all {OFFER_LIMIT} offer slots. Delete an existing offer to create a new one.</p>
+                <div className="premium-block-used">{OFFER_LIMIT}/{OFFER_LIMIT} slots used</div>
+              </div>
+            </div>
+          ) : null}
+          {!atOfferLimit && <form className="admin-form-card-body" onSubmit={createOffer}>
             <div className="form-row">
               <div className="form-field">
                 <label className="form-label">Offer name</label>
@@ -809,11 +893,11 @@ export default function AdminPage() {
                 Link products
                 <span className="form-label-hint"> (products shown when offer is clicked)</span>
               </label>
-              {products.length === 0 ? (
+              {offerProductList.length === 0 ? (
                 <p style={{ color: 'var(--muted)', fontSize: '0.87rem' }}>Add products first.</p>
               ) : (
                 <div className="offer-product-check-grid">
-                  {products.map(p => (
+                  {offerProductList.map(p => (
                     <label key={p._id} className="offer-check-item">
                       <input type="checkbox"
                         checked={newOffer.productIds.includes(p._id)}
@@ -829,7 +913,7 @@ export default function AdminPage() {
                 {offerCreating ? 'Creating…' : 'Create offer'}
               </button>
             </div>
-          </form>
+          </form>}
         </div>
         {offersLoading && (
           <div className="admin-list">
@@ -913,11 +997,11 @@ export default function AdminPage() {
                           Link products
                           <span className="form-label-hint"> (products shown when offer is clicked)</span>
                         </label>
-                        {products.length === 0 ? (
+                        {offerProductList.length === 0 ? (
                           <p style={{ color: 'var(--muted)', fontSize: '0.87rem' }}>No products available.</p>
                         ) : (
                           <div className="offer-product-check-grid">
-                            {products.map(p => (
+                            {offerProductList.map(p => (
                               <label key={p._id} className="offer-check-item">
                                 <input type="checkbox"
                                   checked={eo.productIds.includes(p._id)}

@@ -8,6 +8,20 @@ router.get('/', async (req, res) => {
   const filter = {};
   if (req.query.category) filter.category = req.query.category;
   if (req.query.ids) filter._id = { $in: req.query.ids.split(',') };
+
+  if (req.query.slim === 'true') {
+    const products = await Product.find(filter).select('_id name price categoryName').sort({ createdAt: -1 });
+    return res.json(products);
+  }
+
+  if (req.query.page) {
+    const page     = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize) || 5));
+    const total    = await Product.countDocuments(filter);
+    const products = await Product.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize);
+    return res.json({ products, total, page, pageSize, hasMore: page * pageSize < total });
+  }
+
   const products = await Product.find(filter).sort({ createdAt: -1 });
   res.json(products);
 });
