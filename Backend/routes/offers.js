@@ -1,5 +1,6 @@
 import express from 'express';
 import Offer from '../models/Offer.js';
+import { uploadImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -25,13 +26,14 @@ router.post('/', async (req, res) => {
   try {
     const { name, description, imageData, discountLabel, productIds } = req.body;
     if (!name) return res.status(400).json({ error: 'Offer name is required' });
+    const imageUrl = await uploadImage(imageData || '', 'afra-crafts/offers');
     const offer = await Offer.create({
       name,
-      description: description || '',
-      imageData: imageData || '',
+      description:   description || '',
+      imageData:     imageUrl,
       discountLabel: discountLabel || '',
-      productIds: productIds || [],
-      isActive: true,
+      productIds:    productIds || [],
+      isActive:      true,
     });
     res.status(201).json(offer);
   } catch (err) {
@@ -44,12 +46,12 @@ router.put('/:id', async (req, res) => {
     const { name, description, imageData, discountLabel, productIds, isActive } = req.body;
     const offer = await Offer.findById(req.params.id);
     if (!offer) return res.status(404).json({ error: 'Offer not found' });
-    if (name !== undefined) offer.name = name;
-    if (description !== undefined) offer.description = description;
-    if (imageData) offer.imageData = imageData;
+    if (name !== undefined)          offer.name          = name;
+    if (description !== undefined)   offer.description   = description;
+    if (imageData)                   offer.imageData     = await uploadImage(imageData, 'afra-crafts/offers');
     if (discountLabel !== undefined) offer.discountLabel = discountLabel;
-    if (productIds !== undefined) offer.productIds = productIds;
-    if (isActive !== undefined) offer.isActive = isActive;
+    if (productIds !== undefined)    offer.productIds    = productIds;
+    if (isActive !== undefined)      offer.isActive      = isActive;
     await offer.save();
     res.json(offer);
   } catch (err) {

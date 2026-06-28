@@ -1,6 +1,7 @@
 import express from 'express';
 import Category from '../models/Category.js';
 import Product from '../models/Product.js';
+import { uploadImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -22,9 +23,9 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, description, imageUrl, imageData } = req.body;
+  const { name, description, imageData } = req.body;
   if (!name) return res.status(400).json({ error: 'Category name is required' });
-  if (!imageData && !imageUrl) return res.status(400).json({ error: 'Category image is required' });
+  if (!imageData) return res.status(400).json({ error: 'Category image is required' });
   const total = await Category.countDocuments();
   if (total >= 5) return res.status(400).json({ error: 'Limit reached: maximum 5 categories. Premium option can unlock more.' });
 
@@ -32,18 +33,21 @@ router.post('/', async (req, res) => {
   const exists = await Category.findOne({ slug });
   if (exists) return res.status(400).json({ error: 'This category already exists' });
 
-  const category = await Category.create({ name, slug, description, imageUrl: imageUrl || '', imageData: imageData || '' });
+  const imageUrl = await uploadImage(imageData, 'afra-crafts/categories');
+  const category = await Category.create({ name, slug, description, imageUrl, imageData: '' });
   res.status(201).json(category);
 });
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, description, imageUrl, imageData } = req.body;
+  const { name, description, imageData } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Category name is required' });
   const slug = name.trim().toLowerCase().replace(/\s+/g, '-');
   const fields = { name: name.trim(), description, slug };
-  if (imageUrl !== undefined) fields.imageUrl = imageUrl || '';
-  if (imageData !== undefined) fields.imageData = imageData || '';
+  if (imageData) {
+    fields.imageUrl  = await uploadImage(imageData, 'afra-crafts/categories');
+    fields.imageData = '';
+  }
   const updated = await Category.findByIdAndUpdate(id, fields, { new: true, runValidators: true });
   if (!updated) return res.status(404).json({ error: 'Category not found' });
   res.json(updated);

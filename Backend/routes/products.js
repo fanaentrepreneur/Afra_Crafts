@@ -1,6 +1,7 @@
 import express from 'express';
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
+import { uploadImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, images, imageKey, imageUrl, categoryId } = req.body;
+  const { name, images, imageKey, imageUrl: bodyImageUrl, categoryId } = req.body;
   if (!name || !categoryId) {
     return res.status(400).json({ error: 'Name and category are required' });
   }
@@ -44,15 +45,25 @@ router.post('/', async (req, res) => {
   }
 
   const validImages = images.filter(img => img?.imageData && img?.price !== undefined);
+
+  // Upload all images to Cloudinary
+  const uploadedImages = await Promise.all(
+    validImages.map(async img => ({
+      imageData:   await uploadImage(img.imageData, 'afra-crafts/products'),
+      price:       img.price,
+      description: img.description || '',
+    }))
+  );
+
   const product = await Product.create({
     name,
-    price:       validImages[0].price,
-    description: validImages[0].description || '',
-    imageKey:    imageKey || '',
-    imageUrl:    imageUrl || '',
-    imageData:   validImages[0].imageData,
-    subImages:   validImages.map(img => img.imageData),
-    images:      validImages,
+    price:        uploadedImages[0].price,
+    description:  uploadedImages[0].description,
+    imageKey:     imageKey || '',
+    imageUrl:     uploadedImages[0].imageData,
+    imageData:    '',
+    subImages:    uploadedImages.map(img => img.imageData),
+    images:       uploadedImages,
     category:     category._id,
     categoryName: category.name,
     categorySlug: category.slug,
@@ -61,20 +72,31 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, imageKey, imageUrl, images } = req.body;
+  const { name, imageKey, imageUrl: bodyImageUrl, images } = req.body;
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found' });
 
   if (name !== undefined)     product.name     = name;
   if (imageKey !== undefined) product.imageKey = imageKey;
-  if (imageUrl !== undefined) product.imageUrl = imageUrl;
+
   if (Array.isArray(images)) {
     const valid = images.filter(img => img?.imageData);
-    product.images      = valid;
-    product.subImages   = valid.map(img => img.imageData);
-    product.imageData   = valid[0]?.imageData || '';
-    if (valid[0]?.price !== undefined) product.price = valid[0].price;
-    if (valid[0]?.description !== undefined) product.description = valid[0].description;
+
+    // Upload any new base64 images; existing Cloudinary URLs pass through unchanged
+    const uploadedImages = await Promise.all(
+      valid.map(async img => ({
+        imageData:   await uploadImage(img.imageData, 'afra-crafts/products'),
+        price:       img.price,
+        description: img.description || '',
+      }))
+    );
+
+    product.images    = uploadedImages;
+    product.subImages = uploadedImages.map(img => img.imageData);
+    product.imageUrl  = uploadedImages[0]?.imageData || '';
+    product.imageData = '';
+    if (uploadedImages[0]?.price !== undefined) product.price = uploadedImages[0].price;
+    if (uploadedImages[0]?.description !== undefined) product.description = uploadedImages[0].description;
   }
 
   await product.save();
