@@ -44,40 +44,65 @@ async function migrateCategories() {
 }
 
 async function migrateProducts() {
-  const products = await Product.find({});
+  const total = await Product.countDocuments();
+  console.log(`  Found ${total} products in DB`);
   let migrated = 0;
-  for (const prod of products) {
+  const col = mongoose.connection.db.collection('products');
+  const ids = await col.find({}, { projection: { _id: 1 } }).toArray();
+  console.log(`  Fetched ${ids.length} product IDs`);
+  for (const { _id } of ids) {
+    const prod = await col.findOne({ _id });
     const hasBase64 = prod.images?.some(img => img.imageData?.startsWith('data:'))
-      || prod.imageData?.startsWith('data:');
-    if (!hasBase64) continue;
+      || prod.imageData?.startsWith('data:')
+      || prod.subImages?.some(img => img?.startsWith('data:'));
+    if (!hasBase64) {
+      console.log(`  – Skipping "${prod.name}" (no base64 found)`);
+      continue;
+    }
     try {
-      const uploadedImages = await Promise.all(
-        (prod.images || []).map(async img => ({
-          imageData:   await upload(img.imageData, 'afra-crafts/products'),
-          price:       img.price,
-          description: img.description || '',
-        }))
-      );
-
-      // Fallback: if images array was empty but imageData existed
-      if (uploadedImages.length === 0 && prod.imageData?.startsWith('data:')) {
-        const url = await upload(prod.imageData, 'afra-crafts/products');
-        await Product.findByIdAndUpdate(prod._id, { imageUrl: url, imageData: '', subImages: [url] });
-      } else {
+      // Case 1: images[] array has base64
+      if (prod.images?.some(img => img.imageData?.startsWith('data:'))) {
+        const uploadedImages = await Promise.all(
+          prod.images.map(async img => ({
+            imageData:   await upload(img.imageData, 'afra-crafts/products'),
+            price:       img.price,
+            description: img.description || '',
+          }))
+        );
         await Product.findByIdAndUpdate(prod._id, {
           images:    uploadedImages,
           imageUrl:  uploadedImages[0]?.imageData || '',
           imageData: '',
           subImages: uploadedImages.map(img => img.imageData),
         });
+        migrated++;
+        console.log(`  ✓ Product "${prod.name}" via images[] (${uploadedImages.length} images)`);
+
+      // Case 2: only subImages[] has base64
+      } else if (prod.subImages?.some(img => img?.startsWith('data:'))) {
+        const uploadedSubImages = await Promise.all(
+          prod.subImages.map(img => upload(img, 'afra-crafts/products'))
+        );
+        await Product.findByIdAndUpdate(prod._id, {
+          subImages: uploadedSubImages,
+          imageUrl:  uploadedSubImages[0] || '',
+          imageData: '',
+        });
+        migrated++;
+        console.log(`  ✓ Product "${prod.name}" via subImages[] (${uploadedSubImages.length} images)`);
+
+      // Case 3: only top-level imageData has base64
+      } else if (prod.imageData?.startsWith('data:')) {
+        const url = await upload(prod.imageData, 'afra-crafts/products');
+        await Product.findByIdAndUpdate(prod._id, { imageUrl: url, imageData: '', subImages: [url] });
+        migrated++;
+        console.log(`  ✓ Product "${prod.name}" via imageData (1 image)`);
       }
-      migrated++;
-      console.log(`  ✓ Product "${prod.name}" (${uploadedImages.length} image${uploadedImages.length !== 1 ? 's' : ''})`);
     } catch (e) {
       console.error(`  ✗ Product "${prod.name}":`, e.message);
     }
   }
-  console.log(`Products: ${migrated}/${products.length} migrated\n`);
+  console.log(`Products: ${migrated}/${total} migrated\n`);
 }
 
 async function migrateOffers() {
@@ -102,6 +127,19 @@ async function run() {
   console.log('Connecting to MongoDB...');
   await mongoose.connect(process.env.MONGODB_URI);
   console.log('Connected.\n');
+
+  const db = mongoose.connection.db;
+  console.log('Database name:', db.databaseName);
+  const rawProduct = await db.collection('products').findOne({});
+  if (rawProduct) {
+    console.log('Sample product:', rawProduct.name);
+    console.log('  imageData:', rawProduct.imageData?.substring(0, 50) || '(empty)');
+    console.log('  subImages count:', rawProduct.subImages?.length ?? 0);
+    console.log('  subImages[0]:', rawProduct.subImages?.[0]?.substring(0, 50) || '(empty)');
+    console.log('  images count:', rawProduct.images?.length ?? 0);
+    console.log('  images[0].imageData:', rawProduct.images?.[0]?.imageData?.substring(0, 50) || '(empty)');
+  }
+  console.log();
 
   console.log('── Migrating Categories ──');
   await migrateCategories();

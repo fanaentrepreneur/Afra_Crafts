@@ -19,11 +19,11 @@ router.get('/', async (req, res) => {
     const page     = Math.max(1, parseInt(req.query.page) || 1);
     const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize) || 5));
     const total    = await Product.countDocuments(filter);
-    const products = await Product.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize);
+    const products = await Product.find(filter).select('-imageData').sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize);
     return res.json({ products, total, page, pageSize, hasMore: page * pageSize < total });
   }
 
-  const products = await Product.find(filter).sort({ createdAt: -1 });
+  const products = await Product.find(filter).select('-imageData').sort({ createdAt: -1 });
   res.json(products);
 });
 
