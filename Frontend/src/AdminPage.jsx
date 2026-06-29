@@ -218,7 +218,7 @@ export default function AdminPage() {
       for (const img of newProduct.images) {
         if (!img.imageFile) continue;
         const imageData = await fileToBase64(img.imageFile);
-        imagesPayload.push({ imageData, price: parseFloat(img.price) || 0, description: img.description || '' });
+        imagesPayload.push({ imageData, price: Number(img.price) || 0, description: img.description || '' });
       }
       await api.post('/products', {
         name: newProduct.name,
@@ -268,9 +268,9 @@ export default function AdminPage() {
       for (const slot of slots) {
         if (slot.newFile) {
           const imageData = await fileToBase64(slot.newFile);
-          combined.push({ imageData, price: parseFloat(slot.price) || 0, description: slot.description || '' });
+          combined.push({ imageData, price: Number(slot.price) || 0, description: slot.description || '' });
         } else if (slot.existingImg) {
-          combined.push({ imageData: slot.existingImg.imageData, price: parseFloat(slot.price) || 0, description: slot.description || '' });
+          combined.push({ imageData: slot.existingImg.imageData, price: Number(slot.price) || 0, description: slot.description || '' });
         }
       }
       await api.put(`/products/${id}`, { name: upd.name, imageKey: upd.imageKey, images: combined });
@@ -545,7 +545,7 @@ export default function AdminPage() {
                 </div>
                 <div className="form-field">
                   <label className="form-label">Price (₹) {i === 0 && <span style={{ color: 'var(--accent)' }}>*</span>}</label>
-                  <input className="form-input" type="number" min="0" step="0.1"
+                  <input className="form-input" type="number" min="0" step="1"
                     required={i === 0}
                     value={newProduct.images[i].price}
                     placeholder="200"
@@ -719,7 +719,7 @@ export default function AdminPage() {
                     <div className="admin-item-info">
                       <div className="admin-item-name">{prod.name}</div>
                       <div className="admin-item-meta">
-                        ₹{Number(prod.price).toFixed(0)} · {prod.categoryName}
+                        ₹{Number(prod.price)} · {prod.categoryName}
                         {(prod.subImages?.length || 0) > 0 ? ` · ${prod.subImages.length} image${prod.subImages.length !== 1 ? 's' : ''}` : ''}
                       </div>
                     </div>
@@ -786,7 +786,7 @@ export default function AdminPage() {
                             )}
                             <div className="form-field">
                               <label className="form-label">Price (₹)</label>
-                              <input className="form-input" type="number" min="0" step="0.1"
+                              <input className="form-input" type="number" min="0" step="1"
                                 value={slot.price || ''}
                                 placeholder="0"
                                 onChange={e => {
@@ -902,7 +902,7 @@ export default function AdminPage() {
                       <input type="checkbox"
                         checked={newOffer.productIds.includes(p._id)}
                         onChange={() => toggleOfferProduct(p._id)} />
-                      <span>{p.name} <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>₹{Number(p.price).toFixed(0)}</span></span>
+                      <span>{p.name} <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>₹{Number(p.price)}</span></span>
                     </label>
                   ))}
                 </div>
@@ -1011,7 +1011,7 @@ export default function AdminPage() {
                                       : [...eo.productIds, p._id];
                                     setOfferEdit({ ...offerEdit, [offer._id]: { ...eo, productIds: ids } });
                                   }} />
-                                <span>{p.name} <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>₹{Number(p.price).toFixed(0)}</span></span>
+                                <span>{p.name} <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>₹{Number(p.price)}</span></span>
                               </label>
                             ))}
                           </div>

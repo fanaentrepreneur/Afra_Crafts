@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import connectDB from './config/db.js';
 import User from './models/User.js';
@@ -8,8 +8,6 @@ import categoryRoutes from './routes/categories.js';
 import productRoutes from './routes/products.js';
 import authRoutes from './routes/auth.js';
 import offerRoutes from './routes/offers.js';
-
-dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
