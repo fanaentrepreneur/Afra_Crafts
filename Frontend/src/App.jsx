@@ -61,6 +61,7 @@ export default function App() {
             <LogoPopup
               onClose={() => setPopupOpen(false)}
               onAuthChange={handleAuthChange}
+              isLoggedIn={authRole === 'admin'}
             />
           )}
         </div>

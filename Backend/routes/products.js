@@ -54,7 +54,7 @@ router.post('/', async (req, res) => {
     const uploadedImages = await Promise.all(
       validImages.map(async img => ({
         imageData:   await uploadImage(img.imageData, 'afra-crafts/products'),
-        price:       img.price,
+        price:       Math.round(Number(img.price)) || 0,
         description: img.description || '',
       }))
     );
@@ -93,7 +93,7 @@ router.put('/:id', async (req, res) => {
       const uploadedImages = await Promise.all(
         valid.map(async img => ({
           imageData:   await uploadImage(img.imageData, 'afra-crafts/products'),
-          price:       img.price,
+          price:       Math.round(Number(img.price)) || 0,
           description: img.description || '',
         }))
       );

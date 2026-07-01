@@ -2,15 +2,14 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api.js';
-import { setAdminSession, logout, getUserName, getUsername, isAdmin } from '../utils/auth.js';
+import { setAdminSession, logout, getUserName, getUsername } from '../utils/auth.js';
 import { useToast } from '../context/ToastContext.jsx';
 
-export default function LogoPopup({ onClose, onAuthChange }) {
+export default function LogoPopup({ onClose, onAuthChange, isLoggedIn }) {
   const navigate  = useNavigate();
   const toast     = useToast();
-  const admin     = isAdmin();
 
-  const [view,       setView]       = useState(admin ? 'profile' : 'signin');
+  const [view,       setView]       = useState(isLoggedIn ? 'profile' : 'signin');
   const [username,   setUsername]   = useState('');
   const [password,   setPassword]   = useState('');
   const [signinErr,  setSigninErr]  = useState('');
@@ -20,6 +19,10 @@ export default function LogoPopup({ onClose, onAuthChange }) {
 
   const name           = getUserName();
   const storedUsername = getUsername();
+
+  useEffect(() => {
+    setView(isLoggedIn ? 'profile' : 'signin');
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -39,8 +42,8 @@ export default function LogoPopup({ onClose, onAuthChange }) {
       if (role === 'admin') {
         setAdminSession(rawUsername || username.trim().toLowerCase(), fullName);
         toast(`Welcome, ${fullName}!`, 'success');
-        onAuthChange();
         onClose();
+        onAuthChange();
         navigate('/admin');
       } else {
         setSigninErr('This account does not have admin access.');
@@ -70,11 +73,11 @@ export default function LogoPopup({ onClose, onAuthChange }) {
     }
   };
 
-  /* ── Sign out ──────────────────────────── */
+  /* ── Sign out — only called from explicit button click ── */
   const handleSignOut = () => {
     logout();
-    onAuthChange();
     onClose();
+    onAuthChange();
     navigate('/shop');
   };
 

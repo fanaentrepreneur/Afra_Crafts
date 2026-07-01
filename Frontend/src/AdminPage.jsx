@@ -218,7 +218,7 @@ export default function AdminPage() {
       for (const img of newProduct.images) {
         if (!img.imageFile) continue;
         const imageData = await fileToBase64(img.imageFile);
-        imagesPayload.push({ imageData, price: Number(img.price) || 0, description: img.description || '' });
+        imagesPayload.push({ imageData, price: Math.round(Number(img.price)) || 0, description: img.description || '' });
       }
       await api.post('/products', {
         name: newProduct.name,
@@ -268,9 +268,9 @@ export default function AdminPage() {
       for (const slot of slots) {
         if (slot.newFile) {
           const imageData = await fileToBase64(slot.newFile);
-          combined.push({ imageData, price: Number(slot.price) || 0, description: slot.description || '' });
+          combined.push({ imageData, price: Math.round(Number(slot.price)) || 0, description: slot.description || '' });
         } else if (slot.existingImg) {
-          combined.push({ imageData: slot.existingImg.imageData, price: Number(slot.price) || 0, description: slot.description || '' });
+          combined.push({ imageData: slot.existingImg.imageData, price: Math.round(Number(slot.price)) || 0, description: slot.description || '' });
         }
       }
       await api.put(`/products/${id}`, { name: upd.name, imageKey: upd.imageKey, images: combined });
@@ -545,12 +545,13 @@ export default function AdminPage() {
                 </div>
                 <div className="form-field">
                   <label className="form-label">Price (₹) {i === 0 && <span style={{ color: 'var(--accent)' }}>*</span>}</label>
-                  <input className="form-input" type="number" min="0" step="1"
+                  <input className="form-input" type="text" inputMode="numeric"
                     required={i === 0}
                     value={newProduct.images[i].price}
                     placeholder="200"
                     onChange={e => {
-                      const imgs = newProduct.images.map((img, j) => j === i ? { ...img, price: e.target.value } : img);
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      const imgs = newProduct.images.map((img, j) => j === i ? { ...img, price: val } : img);
                       setNewProduct({ ...newProduct, images: imgs });
                     }} />
                 </div>
@@ -786,12 +787,13 @@ export default function AdminPage() {
                             )}
                             <div className="form-field">
                               <label className="form-label">Price (₹)</label>
-                              <input className="form-input" type="number" min="0" step="1"
+                              <input className="form-input" type="text" inputMode="numeric"
                                 value={slot.price || ''}
                                 placeholder="0"
                                 onChange={e => {
+                                  const val = e.target.value.replace(/[^0-9]/g, '');
                                   const slots = [...es.imageSlots];
-                                  slots[idx] = { ...slots[idx], price: e.target.value };
+                                  slots[idx] = { ...slots[idx], price: val };
                                   setProductEdit({ ...productEdit, [prod._id]: { ...es, imageSlots: slots } });
                                 }} />
                             </div>
